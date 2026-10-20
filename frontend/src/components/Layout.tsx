@@ -1,17 +1,28 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { menuFor, type Role } from "../lib/roles";
+import { useAuth } from "../lib/auth";
+import { menuFor } from "../lib/roles";
 
-/** Page frame with the menu. The role comes from /me once login is wired up (ticket 02). */
-export default function Layout({ role }: { role?: Role }) {
+/** Page frame: the logged-in user, the menu for their role, and log out. */
+export default function Layout() {
+  const { me, logOut } = useAuth();
+  if (!me) return null;
+
   return (
     <div className="layout">
       <nav className="menu">
         <strong className="brand">Siam Bean</strong>
-        {menuFor(role).map((item) => (
+        <div className="who">
+          <span>{me.full_name}</span>
+          <span className="muted">{me.role}</span>
+        </div>
+        {menuFor(me.role).map((item) => (
           <NavLink key={item.path} to={item.path}>
             {item.label}
           </NavLink>
         ))}
+        <button className="logout" onClick={logOut}>
+          Log out
+        </button>
       </nav>
       <main className="content">
         <Outlet />
