@@ -102,3 +102,117 @@ def test_sales_and_warehouse_get_403_on_accounting(client_as, role):
     response = client_as(role).get("/accounting/receivables")
 
     assert response.status_code == 403
+
+
+# ---------- Record a payment (ticket 17) ------------------------------------
+
+UNKNOWN_ID = 999999
+
+
+def record(client, invoice_id: int, amount):
+    return client.post(f"/invoices/{invoice_id}/payments", json={"amount": amount})
+
+
+def open_receivables_on_dashboard() -> float:
+    # The dashboard API is Part 1's; the team agreed to read its database function directly.
+    company_id = get_db().table("companies").select("id").eq("name", "Siam Bean Co.").single().execute().data["id"]
+    numbers = get_db().rpc("dashboard_numbers", {"p_company": company_id}).execute().data
+    return round(float(numbers["open_receivables"]), 2)
+
+
+def test_a_full_payment_makes_inv_0001_paid_and_receivables_drop_by_9630(client_as):
+    # US-4: open INV-0001 of 9,630 THB, record a full payment → Paid, receivables drop by 9,630.
+    issued = invoice_for(client_as("sales"))
+    accountant = client_as("accountant")
+    before = open_receivables_on_dashboard()
+
+    response = record(accountant, issued["invoice_id"], 9630.00)
+
+    assert response.status_code == 201
+    invoice = response.json()
+    assert invoice["number"] == "INV-0001"
+    assert invoice["status"] == "paid"
+    assert invoice["paid"] == 9630.00
+    assert invoice["outstanding"] == 0.00
+    assert before - open_receivables_on_dashboard() == 9630.00
+    assert receivables(accountant) == []
+    assert accountant.get(f"/invoices/{issued['invoice_id']}").json()["status"] == "paid"
+
+
+def test_a_part_payment_keeps_the_invoice_open_and_lowers_outstanding(client_as):
+    issued = invoice_for(client_as("sales"))
+    accountant = client_as("accountant")
+
+    response = record(accountant, issued["invoice_id"], 4000)
+
+    assert response.status_code == 201
+    assert response.json()["status"] == "open"
+    assert response.json()["outstanding"] == 5630.00
+    [owed] = receivables(accountant)
+    assert owed["paid"] == 4000.00
+    assert owed["outstanding"] == 5630.00
+
+
+def test_two_part_payments_that_reach_the_total_make_it_paid(client_as):
+    issued = invoice_for(client_as("sales"))
+    accountant = client_as("accountant")
+    record(accountant, issued["invoice_id"], 4000)
+
+    response = record(accountant, issued["invoice_id"], 5630)
+
+    assert response.json()["status"] == "paid"
+    detail = accountant.get(f"/invoices/{issued['invoice_id']}").json()
+    assert [p["amount"] for p in detail["payments"]] == [4000.00, 5630.00]
+
+
+@pytest.mark.parametrize("amount", [0, -100, 9630.01])
+def test_an_amount_outside_0_01_to_outstanding_is_422_with_the_range(client_as, amount):
+    issued = invoice_for(client_as("sales"))
+    accountant = client_as("accountant")
+
+    response = record(accountant, issued["invoice_id"], amount)
+
+    assert response.status_code == 422
+    assert "0.01" in response.json()["detail"]
+    assert "9630.00" in response.json()["detail"]
+    [owed] = receivables(accountant)
+    assert owed["outstanding"] == 9630.00
+
+
+def test_paying_a_paid_invoice_is_422(client_as):
+    issued = invoice_for(client_as("sales"))
+    accountant = client_as("accountant")
+    record(accountant, issued["invoice_id"], 9630)
+
+    response = record(accountant, issued["invoice_id"], 1)
+
+    assert response.status_code == 422
+    assert "INV-0001" in response.json()["detail"]
+    detail = accountant.get(f"/invoices/{issued['invoice_id']}").json()
+    assert detail["paid"] == 9630.00
+
+
+def test_paying_an_unknown_invoice_is_404(client_as):
+    response = record(client_as("accountant"), UNKNOWN_ID, 100)
+
+    assert response.status_code == 404
+    assert response.json()["detail"]
+
+
+def test_admin_can_record_a_payment(client_as):
+    issued = invoice_for(client_as("sales"))
+
+    response = record(client_as("admin"), issued["invoice_id"], 100)
+
+    assert response.status_code == 201
+
+
+@pytest.mark.parametrize("role", ["sales", "warehouse"])
+def test_sales_and_warehouse_get_403_on_payments(client_as, role):
+    issued = invoice_for(client_as("sales"))
+
+    response = record(client_as(role), issued["invoice_id"], 100)
+
+    assert response.status_code == 403
+    [owed] = receivables(client_as("accountant"))
+    assert owed["paid"] == 0.00
