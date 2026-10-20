@@ -2,21 +2,33 @@ export type Role = "admin" | "sales" | "warehouse" | "accountant";
 
 const ALL: Role[] = ["admin", "sales", "warehouse", "accountant"];
 
+// Who may open each area: the role matrix in docs/plan.md. Hiding a page is
+// not security: the API checks every request too.
+export const PAGE_ROLES = {
+  dashboard: ALL,
+  products: ALL,
+  customers: ["admin", "sales", "accountant"],
+  stockIn: ["admin", "warehouse"],
+  orders: ["admin", "sales"],
+  invoices: ["admin", "sales", "accountant"],
+  accounting: ["admin", "accountant"],
+  purchaseOrders: ["admin", "warehouse"],
+} satisfies Record<string, Role[]>;
+
 export type MenuItem = { label: string; path: string; roles: Role[] };
 
-// Role matrix from docs/plan.md. Hiding a link is not security: the API checks too.
 export const MENU: MenuItem[] = [
-  { label: "Dashboard", path: "/dashboard", roles: ALL },
-  { label: "Products", path: "/products", roles: ALL },
-  { label: "Customers", path: "/customers", roles: ["admin", "sales", "accountant"] },
-  { label: "Stock in", path: "/stock-in", roles: ["admin", "warehouse"] },
-  { label: "Sales orders", path: "/orders", roles: ["admin", "sales"] },
-  { label: "Invoices", path: "/invoices", roles: ["admin", "sales", "accountant"] },
-  { label: "Accounting", path: "/accounting", roles: ["admin", "accountant"] },
-  { label: "Purchase orders", path: "/purchase-orders", roles: ["admin", "warehouse"] },
+  { label: "Dashboard", path: "/dashboard", roles: PAGE_ROLES.dashboard },
+  { label: "Products", path: "/products", roles: PAGE_ROLES.products },
+  { label: "Customers", path: "/customers", roles: PAGE_ROLES.customers },
+  { label: "Stock in", path: "/stock-in", roles: PAGE_ROLES.stockIn },
+  { label: "Sales orders", path: "/orders", roles: PAGE_ROLES.orders },
+  { label: "Invoices", path: "/invoices", roles: PAGE_ROLES.invoices },
+  { label: "Accounting", path: "/accounting", roles: PAGE_ROLES.accounting },
+  { label: "Purchase orders", path: "/purchase-orders", roles: PAGE_ROLES.purchaseOrders },
 ];
 
-/** Menu items for a role. With no role yet (before login is wired up), all items. */
-export function menuFor(role: Role | undefined): MenuItem[] {
-  return role ? MENU.filter((item) => item.roles.includes(role)) : MENU;
+/** The menu items a role may use. */
+export function menuFor(role: Role): MenuItem[] {
+  return MENU.filter((item) => item.roles.includes(role));
 }
