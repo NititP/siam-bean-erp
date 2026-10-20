@@ -26,6 +26,7 @@ class CustomerPatch(BaseModel):
     name: str | None = None
     tax_id: str | None = None
     payment_terms_days: int | None = None
+    active: bool | None = None  # true reactivates a deactivated customer
 
 
 def checked(fields: dict) -> dict:
@@ -37,6 +38,8 @@ def checked(fields: dict) -> dict:
                 raise HTTPException(422, f"{label} is required.")
     if "payment_terms_days" in fields and (fields["payment_terms_days"] is None or fields["payment_terms_days"] < 0):
         raise HTTPException(422, "Payment terms must be 0 days (cash) or more.")
+    if "active" in fields and fields["active"] is None:
+        raise HTTPException(422, "Active must be true or false.")
     return fields
 
 
@@ -98,6 +101,23 @@ def edit_customer(customer_id: int, body: CustomerPatch, user: CurrentUser = Dep
         rows = table.update(fields).eq("id", customer_id).eq("company_id", user.company_id).execute().data
     else:
         rows = table.select(COLUMNS).eq("id", customer_id).eq("company_id", user.company_id).execute().data
+    if not rows:
+        raise HTTPException(404, f"Customer {customer_id} not found.")
+    return {key: rows[0][key] for key in COLUMNS.split(", ")}
+
+
+@router.post("/customers/{customer_id}/deactivate")
+def deactivate_customer(customer_id: int, user: CurrentUser = Depends(require_roles(*EDITORS))):
+    """No new orders go to this customer; old documents keep them."""
+    rows = (
+        get_db()
+        .table("customers")
+        .update({"active": False})
+        .eq("id", customer_id)
+        .eq("company_id", user.company_id)
+        .execute()
+        .data
+    )
     if not rows:
         raise HTTPException(404, f"Customer {customer_id} not found.")
     return {key: rows[0][key] for key in COLUMNS.split(", ")}

@@ -17,9 +17,20 @@ export type CustomerPage = { items: Customer[]; total: number };
 export const CUSTOMERS_PER_PAGE = 20;
 
 /** Customers whose name contains q (ignoring case), one page at a time from page 1. */
-export function listCustomers({ q = "", page = 1 } = {}): Promise<CustomerPage> {
+export function listCustomers({ q = "", page = 1, includeInactive = false } = {}): Promise<CustomerPage> {
   const params = new URLSearchParams({ q, page: String(page) });
+  if (includeInactive) params.set("include_inactive", "true");
   return api<CustomerPage>(`/customers?${params}`);
+}
+
+/** Admin and sales only. No new orders go to this customer; old documents keep them. */
+export function deactivateCustomer(id: number): Promise<Customer> {
+  return api<Customer>(`/customers/${id}/deactivate`, { method: "POST" });
+}
+
+/** Admin and sales only. */
+export function reactivateCustomer(id: number): Promise<Customer> {
+  return api<Customer>(`/customers/${id}`, { method: "PATCH", body: { active: true } });
 }
 
 /** What Sales or the Admin types in to create or edit a customer. */
