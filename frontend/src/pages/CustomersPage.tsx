@@ -1,14 +1,34 @@
 import { useEffect, useState } from "react";
+import CustomerForm from "../components/CustomerForm";
 import EmptyState from "../components/EmptyState";
 import ErrorMessage from "../components/ErrorMessage";
-import { CUSTOMERS_PER_PAGE, formatTerms, listCustomers, type CustomerPage } from "../lib/customers";
+import { useAuth } from "../lib/auth";
+import {
+  CUSTOMERS_PER_PAGE,
+  createCustomer,
+  editCustomer,
+  formatTerms,
+  listCustomers,
+  type Customer,
+  type CustomerPage,
+} from "../lib/customers";
+import type { Role } from "../lib/roles";
 import "../components/DataTable.css";
 import "./CustomersPage.css";
 
 const TYPING_PAUSE_MS = 300;
+// Who may create, edit and deactivate customers (docs/plan.md roles). The API checks too.
+const EDITORS: Role[] = ["admin", "sales"];
+
+/** Which form is open: none, the create form, or the edit form for one customer. */
+type Editing = null | "new" | Customer;
 
 // Owner: Part 1
 export default function CustomersPage() {
+  const { me } = useAuth();
+  const canEdit = me !== null && EDITORS.includes(me.role);
+  const [editing, setEditing] = useState<Editing>(null);
+  const [reloads, setReloads] = useState(0); // bump to fetch the current page again
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -42,13 +62,31 @@ export default function CustomersPage() {
     return () => {
       current = false;
     };
-  }, [q, page]);
+  }, [q, page, reloads]);
+
+  function closeForm() {
+    setEditing(null);
+    setReloads((n) => n + 1);
+  }
 
   const pages = result ? Math.max(1, Math.ceil(result.total / CUSTOMERS_PER_PAGE)) : 1;
 
   return (
     <section>
       <h1>Customers</h1>
+      {canEdit && editing === null && (
+        <p>
+          <button onClick={() => setEditing("new")}>Add customer</button>
+        </p>
+      )}
+      {editing !== null && (
+        <CustomerForm
+          key={editing === "new" ? "new" : editing.id}
+          customer={editing === "new" ? undefined : editing}
+          onSave={(input) => (editing === "new" ? createCustomer(input) : editCustomer(editing.id, input))}
+          onDone={closeForm}
+        />
+      )}
       <input
         className="customer-search"
         type="search"
@@ -69,6 +107,7 @@ export default function CustomersPage() {
                   <th>Name</th>
                   <th>Tax ID</th>
                   <th>Payment terms</th>
+                  {canEdit && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -77,6 +116,11 @@ export default function CustomersPage() {
                     <td data-label="Name">{c.name}</td>
                     <td data-label="Tax ID">{c.tax_id}</td>
                     <td data-label="Payment terms">{formatTerms(c.payment_terms_days)}</td>
+                    {canEdit && (
+                      <td className="row-actions">
+                        <button onClick={() => setEditing(c)}>Edit</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

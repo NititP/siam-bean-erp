@@ -1,4 +1,6 @@
-.product-form {
+/* Owner: Part 1. Create / edit forms for products and customers. */
+
+.record-form {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
@@ -10,31 +12,31 @@
   border-radius: 8px;
 }
 
-.product-form h2,
-.product-form .error[role="alert"],
-.product-form .form-actions {
+.record-form h2,
+.record-form .error[role="alert"],
+.record-form .form-actions {
   grid-column: 1 / -1;
   margin: 0;
 }
 
-.product-form label {
+.record-form label {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.product-form input {
+.record-form input {
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font: inherit;
 }
 
-.product-form input[aria-invalid="true"] {
+.record-form input[aria-invalid="true"] {
   border-color: var(--error);
 }
 
-.product-form label .error {
+.record-form label .error {
   font-size: 0.85em;
 }
 

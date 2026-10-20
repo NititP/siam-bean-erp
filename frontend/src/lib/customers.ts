@@ -22,6 +22,19 @@ export function listCustomers({ q = "", page = 1 } = {}): Promise<CustomerPage> 
   return api<CustomerPage>(`/customers?${params}`);
 }
 
+/** What Sales or the Admin types in to create or edit a customer. */
+export type CustomerInput = Pick<Customer, "name" | "tax_id" | "payment_terms_days">;
+
+/** Admin and sales only. */
+export function createCustomer(input: CustomerInput): Promise<Customer> {
+  return api<Customer>("/customers", { method: "POST", body: input });
+}
+
+/** Admin and sales only. */
+export function editCustomer(id: number, input: CustomerInput): Promise<Customer> {
+  return api<Customer>(`/customers/${id}`, { method: "PATCH", body: input });
+}
+
 /** 0 -> "Cash", 30 -> "30 days". */
 export function formatTerms(days: number): string {
   return days === 0 ? "Cash" : `${days} days`;
