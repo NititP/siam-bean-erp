@@ -48,14 +48,23 @@ def client_as():
     """client_as("sales") is a TestClient logged in as the sales demo user.
 
     Only the token check is replaced: the user's role and company still come
-    from the users table. Pass app= to log in to another FastAPI app.
+    from the users table. Pass email= for a specific demo user of that role
+    (e.g. Ploy, the second sales user), app= to log in to another FastAPI app.
     """
     apps: list[FastAPI] = []
 
-    def login(role: str, app: FastAPI = main_app) -> TestClient:
-        user_id = (
-            get_db().table("users").select("id").eq("email", DEMO_EMAILS[role]).single().execute().data["id"]
+    def login(role: str, app: FastAPI = main_app, email: str | None = None) -> TestClient:
+        user = (
+            get_db()
+            .table("users")
+            .select("id, role")
+            .eq("email", email or DEMO_EMAILS[role])
+            .single()
+            .execute()
+            .data
         )
+        assert user["role"] == role, f"{email} is {user['role']}, not {role}"
+        user_id = user["id"]
         app.dependency_overrides[get_user_id] = _token_check_or_test_user
         apps.append(app)
         return TestClient(app, headers={TEST_USER_HEADER: user_id})

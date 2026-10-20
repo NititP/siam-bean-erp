@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from supabase_auth.errors import AuthError
+from supabase_auth.errors import AuthError, AuthRetryableError
 
 from app.db import get_db
 
@@ -24,6 +24,8 @@ def get_user_id(credentials: HTTPAuthorizationCredentials | None = Depends(beare
         raise HTTPException(401, "Log in first.")
     try:
         response = get_db().auth.get_user(credentials.credentials)
+    except AuthRetryableError:
+        raise HTTPException(503, "Cannot reach the login service right now. Try again in a minute.")
     except AuthError:
         response = None
     if response is None or response.user is None:
