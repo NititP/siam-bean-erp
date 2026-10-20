@@ -404,3 +404,67 @@ revoke execute on function receive_po(bigint, uuid)               from public, a
 revoke execute on function dashboard_numbers(bigint)              from public, anon, authenticated;
 revoke execute on function reset_demo_data(text)                  from public, anon, authenticated;
 revoke all on stock_on_hand from anon, authenticated;
+
+-- ---------- Added later (append only) ----------------------------------
+-- Create a draft sales order (Part 2, ticket 10). Checks the customer and
+-- every product exist and are active, takes the next SO number and inserts
+-- the order and its lines with price and cost copied from the product
+-- (business rule 6). One transaction: any error leaves no order and uses
+-- no number. p_lines: [{"product_id": 1, "quantity": 20}, ...]
+-- Error codes: SB404 not found, SB422 bad input.
+create or replace function create_order(p_company bigint, p_customer bigint,
+                                        p_user uuid, p_lines jsonb)
+returns jsonb language plpgsql as $$
+declare
+  c     customers%rowtype;
+  p     products%rowtype;
+  l     record;
+  v_no  text;
+  v_id  bigint;
+begin
+  if p_lines is null or jsonb_typeof(p_lines) <> 'array'
+     or jsonb_array_length(p_lines) = 0 then
+    raise exception 'Add at least one line' using errcode = 'SB422';
+  end if;
+
+  select * into c from customers where id = p_customer and company_id = p_company;
+  if not found then
+    raise exception 'Customer % not found', p_customer using errcode = 'SB404';
+  end if;
+  if not c.active then
+    raise exception 'Customer % is inactive', c.name using errcode = 'SB422';
+  end if;
+
+  for l in select * from jsonb_to_recordset(p_lines)
+                      as x(product_id bigint, quantity integer) loop
+    if l.product_id is null then
+      raise exception 'Pick a product for every line' using errcode = 'SB422';
+    end if;
+    select * into p from products where id = l.product_id and company_id = p_company;
+    if not found then
+      raise exception 'Product % not found', l.product_id using errcode = 'SB404';
+    end if;
+    if not p.active then
+      raise exception 'Product % is inactive', p.sku using errcode = 'SB422';
+    end if;
+    if l.quantity is null or l.quantity <= 0 then
+      raise exception 'Quantity for % must be above 0', p.sku using errcode = 'SB422';
+    end if;
+  end loop;
+
+  v_no := next_doc_number(p_company, 'SO');
+  insert into sales_orders (company_id, number, customer_id, created_by)
+  values (p_company, v_no, c.id, p_user)
+  returning id into v_id;
+
+  insert into order_items (order_id, product_id, quantity, unit_price, unit_cost)
+  select v_id, x.product_id, x.quantity, pr.price, pr.cost
+    from rows from (jsonb_to_recordset(p_lines) as (product_id bigint, quantity integer))
+         with ordinality as x(product_id, quantity, n)
+    join products pr on pr.id = x.product_id
+   order by x.n;
+
+  return jsonb_build_object('id', v_id, 'number', v_no);
+end $$;
+
+revoke execute on function create_order(bigint, bigint, uuid, jsonb) from public, anon, authenticated;
