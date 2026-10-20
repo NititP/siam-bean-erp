@@ -142,3 +142,29 @@ def create_order(body: OrderIn, user: CurrentUser = Depends(require_roles(*SELLE
 @router.get("/orders/{order_id}")
 def get_order(order_id: int, user: CurrentUser = Depends(require_roles(*SELLERS))):
     return order_detail(user.company_id, order_id)
+
+
+@router.post("/orders/{order_id}/confirm")
+def confirm_order(order_id: int, user: CurrentUser = Depends(require_roles(*SELLERS))):
+    """Stock out and the invoice together, or nothing: 409 when stock is short."""
+    order_detail(user.company_id, order_id)  # 404 unless the order is this company's
+    result = db_call(get_db().rpc("confirm_order", {"p_order_id": order_id, "p_user": user.id}))
+    invoice = (
+        get_db()
+        .table("invoices")
+        .select("issue_date, due_date")
+        .eq("id", result["invoice_id"])
+        .single()
+        .execute()
+        .data
+    )
+    return {
+        "order_number": result["order_number"],
+        "invoice_id": result["invoice_id"],
+        "invoice_number": result["invoice_number"],
+        "subtotal": money(result["subtotal"]),
+        "vat": money(result["vat"]),
+        "total": money(result["total"]),
+        "issue_date": invoice["issue_date"],
+        "due_date": invoice["due_date"],
+    }

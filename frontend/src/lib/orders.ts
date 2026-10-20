@@ -54,6 +54,23 @@ export function createOrder(input: OrderInput): Promise<Order> {
   return api<Order>("/orders", { method: "POST", body: input });
 }
 
+/** What POST /orders/{id}/confirm returns: the invoice it issued. */
+export type ConfirmResult = {
+  order_number: string;
+  invoice_id: number;
+  invoice_number: string;
+  subtotal: number;
+  vat: number;
+  total: number;
+  issue_date: string;
+  due_date: string;
+};
+
+/** Admin and sales only. Stock out and the invoice together; 409 "Not enough stock for <SKU>". */
+export function confirmOrder(id: number): Promise<ConfirmResult> {
+  return api<ConfirmResult>(`/orders/${id}/confirm`, { method: "POST" });
+}
+
 export const STATUS_LABELS: Record<OrderStatus, string> = {
   draft: "Draft",
   confirmed: "Confirmed",
