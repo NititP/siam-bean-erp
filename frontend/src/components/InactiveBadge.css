@@ -1,0 +1,18 @@
+.badge-inactive {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eceef1;
+  color: var(--muted);
+  font-size: 0.8em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* A switch above a list, like "Show inactive". */
+.list-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+}

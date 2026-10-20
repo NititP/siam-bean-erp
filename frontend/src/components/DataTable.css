@@ -57,3 +57,12 @@
     display: none;
   }
 }
+
+/* Edit / Deactivate buttons at the end of a row. */
+.data-table .row-actions {
+  white-space: nowrap;
+}
+
+.data-table .row-actions button + button {
+  margin-left: 6px;
+}

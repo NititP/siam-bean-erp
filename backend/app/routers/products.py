@@ -27,6 +27,7 @@ class ProductPatch(BaseModel):
     cost: float | None = None
     price: float | None = None
     reorder_level: int | None = None
+    active: bool | None = None  # true reactivates a deactivated product
 
 
 def checked(fields: dict) -> dict:
@@ -41,6 +42,8 @@ def checked(fields: dict) -> dict:
             raise HTTPException(422, f"{key.capitalize()} must be 0 or more.")
     if "reorder_level" in fields and (fields["reorder_level"] is None or fields["reorder_level"] < 0):
         raise HTTPException(422, "Reorder level must be 0 or more.")
+    if "active" in fields and fields["active"] is None:
+        raise HTTPException(422, "Active must be true or false.")
     return fields
 
 
@@ -105,6 +108,23 @@ def edit_product(product_id: int, body: ProductPatch, user: CurrentUser = Depend
         rows = saved(write, fields.get("sku"))
     else:
         rows = table.select(COLUMNS).eq("id", product_id).eq("company_id", user.company_id).execute().data
+    if not rows:
+        raise HTTPException(404, f"Product {product_id} not found.")
+    return with_stock(user.company_id, rows)[0]
+
+
+@router.post("/products/{product_id}/deactivate")
+def deactivate_product(product_id: int, user: CurrentUser = Depends(require_roles("admin"))):
+    """Hide the product from lists and new orders; old documents keep it."""
+    rows = (
+        get_db()
+        .table("products")
+        .update({"active": False})
+        .eq("id", product_id)
+        .eq("company_id", user.company_id)
+        .execute()
+        .data
+    )
     if not rows:
         raise HTTPException(404, f"Product {product_id} not found.")
     return with_stock(user.company_id, rows)[0]

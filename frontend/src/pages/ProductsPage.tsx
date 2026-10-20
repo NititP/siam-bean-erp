@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import EmptyState from "../components/EmptyState";
 import ErrorMessage from "../components/ErrorMessage";
+import InactiveBadge from "../components/InactiveBadge";
 import LowStockBadge from "../components/LowStockBadge";
 import ProductForm from "../components/ProductForm";
 import { useAuth } from "../lib/auth";
 import { formatTHB } from "../lib/money";
-import { createProduct, editProduct, listProducts, type Product } from "../lib/products";
+import {
+  createProduct,
+  deactivateProduct,
+  editProduct,
+  listProducts,
+  reactivateProduct,
+  type Product,
+} from "../lib/products";
 import "../components/DataTable.css";
 
 /** Which form is open: none, the create form, or the edit form for one product. */
@@ -18,13 +26,14 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [editing, setEditing] = useState<Editing>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
   const load = useCallback(() => {
-    listProducts().then((next) => {
+    listProducts({ includeInactive: showInactive }).then((next) => {
       setProducts(next);
       setError(null);
     }, setError);
-  }, []);
+  }, [showInactive]);
 
   useEffect(load, [load]);
 
@@ -33,10 +42,29 @@ export default function ProductsPage() {
     load();
   }
 
+  function deactivate(p: Product) {
+    if (!window.confirm(`Deactivate ${p.sku}? It can no longer go on new orders.`)) return;
+    deactivateProduct(p.id).then(load, setError);
+  }
+
+  function reactivate(p: Product) {
+    reactivateProduct(p.id).then(load, setError);
+  }
+
   return (
     <section>
       <h1>Products</h1>
-      {isAdmin && editing === null && <button onClick={() => setEditing("new")}>Add product</button>}
+      {isAdmin && (
+        <label className="list-toggle">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+          Show inactive
+        </label>
+      )}
+      {isAdmin && editing === null && (
+        <p>
+          <button onClick={() => setEditing("new")}>Add product</button>
+        </p>
+      )}
       {editing !== null && (
         <ProductForm
           key={editing === "new" ? "new" : editing.id}
@@ -66,7 +94,9 @@ export default function ProductsPage() {
               {products.map((p) => (
                 <tr key={p.id}>
                   <td data-label="SKU">{p.sku}</td>
-                  <td data-label="Name">{p.name}</td>
+                  <td data-label="Name">
+                    {p.name} <InactiveBadge active={p.active} />
+                  </td>
                   <td data-label="Unit">{p.unit}</td>
                   <td data-label="Price" className="num">
                     {formatTHB(p.price)}
@@ -78,8 +108,13 @@ export default function ProductsPage() {
                     <LowStockBadge lowStock={p.low_stock} />
                   </td>
                   {isAdmin && (
-                    <td>
+                    <td className="row-actions">
                       <button onClick={() => setEditing(p)}>Edit</button>
+                      {p.active ? (
+                        <button onClick={() => deactivate(p)}>Deactivate</button>
+                      ) : (
+                        <button onClick={() => reactivate(p)}>Reactivate</button>
+                      )}
                     </td>
                   )}
                 </tr>
