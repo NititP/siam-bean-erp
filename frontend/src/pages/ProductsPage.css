@@ -1,0 +1,57 @@
+.table-wrap {
+  overflow-x: auto;
+}
+
+.products {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.products th,
+.products td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.products th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.products .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Phone: each product becomes a card of label / value lines. */
+@media (max-width: 640px) {
+  .products thead {
+    display: none;
+  }
+
+  .products tr {
+    display: block;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .products td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 12px;
+    border-bottom: none;
+  }
+
+  .products td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted);
+  }
+
+  .products td:empty {
+    display: none;
+  }
+}
