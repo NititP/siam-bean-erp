@@ -1,0 +1,83 @@
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1f2328;
+  background: #f6f7f9;
+  --accent: #6b4226;
+  --muted: #6a737d;
+  --error: #b42318;
+  --border: #d8dce1;
+}
+
+body {
+  margin: 0;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: #fff;
+  border-right: 1px solid var(--border);
+}
+
+.menu .brand {
+  margin-bottom: 12px;
+  color: var(--accent);
+}
+
+.menu a {
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.menu a.active {
+  background: #f1e8e1;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.content {
+  padding: 24px;
+  min-width: 0;
+}
+
+.muted,
+.empty {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--error);
+}
+
+/* Phone: single column under 640 px. */
+@media (max-width: 640px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .menu {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .menu .brand {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+}

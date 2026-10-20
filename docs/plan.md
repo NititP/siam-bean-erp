@@ -77,6 +77,12 @@ Only edit your own files. If you need a change in someone else's file, ask them.
   - `dashboard_numbers(company_id)` - sales today, low-stock count, open
     invoices count, open receivables, stock value.
   - `reset_demo_data('yes-reset')` - back to the scenario starting state.
+    One-off exception to "never change existing objects" (ticket 01): its
+    `update suppliers set active = true` had no `WHERE`, which Supabase's API
+    refuses ("UPDATE requires a WHERE clause"), so tests could not reset. Now
+    `... where not active`, same result. The whole function was re-run once in
+    the SQL Editor. Any function called through the API must not run an
+    `update` or `delete` without a `WHERE`.
 - Stock on hand is the `stock_on_hand` view (sum of movements). Never store
   or type a stock number.
 - Order lines copy `unit_price` and `unit_cost` from the product when created.
