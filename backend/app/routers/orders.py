@@ -95,6 +95,31 @@ def order_detail(company_id: int, order_id: int) -> dict:
     }
 
 
+@router.get("/orders")
+def list_orders(user: CurrentUser = Depends(require_roles(*SELLERS))):
+    """Every order, newest first, with the total of its lines (before VAT)."""
+    orders = (
+        get_db()
+        .table("sales_orders")
+        .select("id, number, status, order_date, customers(name), order_items(quantity, unit_price)")
+        .eq("company_id", user.company_id)
+        .order("id", desc=True)
+        .execute()
+        .data
+    )
+    return [
+        {
+            "id": order["id"],
+            "number": order["number"],
+            "customer_name": order["customers"]["name"],
+            "order_date": order["order_date"],
+            "status": order["status"],
+            "total": money(sum(money(item["quantity"] * float(item["unit_price"])) for item in order["order_items"])),
+        }
+        for order in orders
+    ]
+
+
 @router.post("/orders", status_code=201)
 def create_order(body: OrderIn, user: CurrentUser = Depends(require_roles(*SELLERS))):
     """A draft with the next SO number; each line copies the product's current price and cost."""

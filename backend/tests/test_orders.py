@@ -234,3 +234,58 @@ def test_only_sales_and_admin_may_view_an_order(client_as, role):
     response = client_as(role).get(f"/orders/{created['id']}")
 
     assert response.status_code == 403
+
+
+# ---------- Order list (ticket 11) ------------------------------------------
+
+
+def test_the_order_list_is_empty_at_the_start(client_as):
+    response = client_as("sales").get("/orders")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_the_order_list_shows_newest_first(client_as):
+    sales = client_as("sales")
+    new_order(sales)
+    new_order(sales, customer="Brew Lab Ari")
+    new_order(sales, customer="Sukhumvit Corner Café")
+
+    orders = sales.get("/orders").json()
+
+    assert [(o["number"], o["customer_name"]) for o in orders] == [
+        ("SO-0003", "Sukhumvit Corner Café"),
+        ("SO-0002", "Brew Lab Ari"),
+        ("SO-0001", "Café Lune"),
+    ]
+
+
+def test_an_order_row_has_date_status_and_total_of_its_lines(client_as):
+    sales = client_as("sales")
+    created = new_order(sales, lines=[("ARB-1KG", 20), ("BLD-1KG", 2)]).json()
+
+    [row] = sales.get("/orders").json()
+
+    assert row["id"] == created["id"]
+    assert row["number"] == "SO-0001"
+    assert row["customer_name"] == "Café Lune"
+    assert row["order_date"] == created["order_date"]
+    assert row["status"] == "draft"
+    assert row["total"] == 9760.00  # 20 x 450 + 2 x 380, before VAT
+
+
+def test_admin_sees_every_order(client_as):
+    new_order(client_as("sales"))
+
+    response = client_as("admin").get("/orders")
+
+    assert response.status_code == 200
+    assert [o["number"] for o in response.json()] == ["SO-0001"]
+
+
+@pytest.mark.parametrize("role", ["warehouse", "accountant"])
+def test_only_sales_and_admin_may_list_orders(client_as, role):
+    response = client_as(role).get("/orders")
+
+    assert response.status_code == 403
