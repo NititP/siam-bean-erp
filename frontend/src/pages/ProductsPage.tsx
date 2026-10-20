@@ -4,7 +4,7 @@ import ErrorMessage from "../components/ErrorMessage";
 import LowStockBadge from "../components/LowStockBadge";
 import { formatTHB } from "../lib/money";
 import { listProducts, type Product } from "../lib/products";
-import "./ProductsPage.css";
+import "../components/DataTable.css";
 
 // Owner: Part 1
 export default function ProductsPage() {
@@ -23,7 +23,7 @@ export default function ProductsPage() {
       {products?.length === 0 && <EmptyState message="No products yet." />}
       {products && products.length > 0 && (
         <div className="table-wrap">
-          <table className="products">
+          <table className="data-table">
             <thead>
               <tr>
                 <th>SKU</th>
