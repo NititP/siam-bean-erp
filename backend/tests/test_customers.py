@@ -234,3 +234,48 @@ def test_accountant_and_warehouse_cannot_edit_a_customer(client_as, role):
 
     assert response.status_code == 403
     assert customer(admin, "Café Lune")["payment_terms_days"] == 30
+
+
+# ---------- Ticket 09: deactivate and reactivate (admin and sales) ----------
+
+
+@pytest.mark.parametrize("role", EDITORS)
+def test_deactivating_a_customer_hides_them_from_the_default_list(client_as, role):
+    client = client_as(role)
+
+    response = client.post(f"/customers/{customer(client, 'Brew Lab')['id']}/deactivate")
+
+    assert response.status_code == 200
+    assert "Brew Lab Ari" not in names(client.get("/customers"))
+    [shown] = client.get("/customers", params={"q": "Brew Lab", "include_inactive": "true"}).json()["items"]
+    assert shown["active"] is False
+
+
+def test_patching_active_true_brings_a_customer_back(client_as):
+    client = client_as("sales")
+    brew_lab = customer(client, "Brew Lab")["id"]
+    client.post(f"/customers/{brew_lab}/deactivate")
+    assert "Brew Lab Ari" not in names(client.get("/customers"))
+
+    response = client.patch(f"/customers/{brew_lab}", json={"active": True})
+
+    assert response.status_code == 200
+    assert customer(client, "Brew Lab")["active"] is True
+
+
+@pytest.mark.parametrize("role", NOT_EDITORS)
+def test_accountant_and_warehouse_cannot_deactivate_a_customer(client_as, role):
+    admin = client_as("admin")
+    brew_lab = customer(admin, "Brew Lab")["id"]
+
+    response = client_as(role).post(f"/customers/{brew_lab}/deactivate")
+
+    assert response.status_code == 403
+    assert "Brew Lab Ari" in names(admin.get("/customers"))
+
+
+def test_deactivating_an_unknown_customer_is_404_from_our_code(client_as):
+    response = client_as("sales").post("/customers/999999/deactivate")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Customer 999999 not found."

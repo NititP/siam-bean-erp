@@ -2,13 +2,16 @@ import { useEffect, useState } from "react";
 import CustomerForm from "../components/CustomerForm";
 import EmptyState from "../components/EmptyState";
 import ErrorMessage from "../components/ErrorMessage";
+import InactiveBadge from "../components/InactiveBadge";
 import { useAuth } from "../lib/auth";
 import {
   CUSTOMERS_PER_PAGE,
   createCustomer,
+  deactivateCustomer,
   editCustomer,
   formatTerms,
   listCustomers,
+  reactivateCustomer,
   type Customer,
   type CustomerPage,
 } from "../lib/customers";
@@ -29,6 +32,7 @@ export default function CustomersPage() {
   const canEdit = me !== null && EDITORS.includes(me.role);
   const [editing, setEditing] = useState<Editing>(null);
   const [reloads, setReloads] = useState(0); // bump to fetch the current page again
+  const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -46,7 +50,7 @@ export default function CustomersPage() {
 
   useEffect(() => {
     let current = true; // ignore answers to an older search that arrive late
-    listCustomers({ q, page }).then(
+    listCustomers({ q, page, includeInactive: showInactive }).then(
       (next) => {
         if (!current) return;
         // Past the last page of this search (it has fewer matches): go to its last page.
@@ -62,11 +66,24 @@ export default function CustomersPage() {
     return () => {
       current = false;
     };
-  }, [q, page, reloads]);
+  }, [q, page, reloads, showInactive]);
+
+  function reload() {
+    setReloads((n) => n + 1);
+  }
 
   function closeForm() {
     setEditing(null);
-    setReloads((n) => n + 1);
+    reload();
+  }
+
+  function deactivate(c: Customer) {
+    if (!window.confirm(`Deactivate ${c.name}? No new orders can go to them.`)) return;
+    deactivateCustomer(c.id).then(reload, setError);
+  }
+
+  function reactivate(c: Customer) {
+    reactivateCustomer(c.id).then(reload, setError);
   }
 
   const pages = result ? Math.max(1, Math.ceil(result.total / CUSTOMERS_PER_PAGE)) : 1;
@@ -74,6 +91,19 @@ export default function CustomersPage() {
   return (
     <section>
       <h1>Customers</h1>
+      {canEdit && (
+        <label className="list-toggle">
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={(e) => {
+              setShowInactive(e.target.checked);
+              setPage(1);
+            }}
+          />
+          Show inactive
+        </label>
+      )}
       {canEdit && editing === null && (
         <p>
           <button onClick={() => setEditing("new")}>Add customer</button>
@@ -113,12 +143,19 @@ export default function CustomersPage() {
               <tbody>
                 {result.items.map((c) => (
                   <tr key={c.id}>
-                    <td data-label="Name">{c.name}</td>
+                    <td data-label="Name">
+                      {c.name} <InactiveBadge active={c.active} />
+                    </td>
                     <td data-label="Tax ID">{c.tax_id}</td>
                     <td data-label="Payment terms">{formatTerms(c.payment_terms_days)}</td>
                     {canEdit && (
                       <td className="row-actions">
                         <button onClick={() => setEditing(c)}>Edit</button>
+                        {c.active ? (
+                          <button onClick={() => deactivate(c)}>Deactivate</button>
+                        ) : (
+                          <button onClick={() => reactivate(c)}>Reactivate</button>
+                        )}
                       </td>
                     )}
                   </tr>
