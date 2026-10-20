@@ -370,7 +370,7 @@ begin
     ) v(tax_id, name, terms)
    where c.tax_id = v.tax_id;
 
-  update suppliers set active = true;
+  update suppliers set active = true where not active;
 
   insert into stock_movements (company_id, product_id, quantity, ref_doc)
   select p.company_id, p.id, v.qty, 'OPENING'
