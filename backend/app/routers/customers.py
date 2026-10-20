@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, Query
 from postgrest.exceptions import APIError
 
@@ -10,9 +12,11 @@ PAGE_SIZE = 20
 
 
 def name_contains(q: str) -> str:
-    """An ilike pattern for names containing q; % and _ in q match themselves."""
-    escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return f"%{escaped}%"
+    """A regex for names containing q, every character taken literally.
+
+    Not ilike: PostgREST turns every * in an ilike pattern into %, with no escape.
+    """
+    return re.escape(q)
 
 
 @router.get("/customers")
@@ -27,7 +31,7 @@ def list_customers(
     def matching(columns: str):
         query = get_db().table("customers").select(columns, count="exact").eq("company_id", user.company_id)
         if q.strip():
-            query = query.ilike("name", name_contains(q.strip()))
+            query = query.filter("name", "imatch", name_contains(q.strip()))
         if not include_inactive:
             query = query.eq("active", True)
         return query

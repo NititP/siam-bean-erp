@@ -36,6 +36,14 @@ def test_search_matches_part_of_the_name_ignoring_case(client_as):
     assert names(client.get("/customers", params={"q": "café"})) == {"Café Lune", "Sukhumvit Corner Café"}
 
 
+@pytest.mark.parametrize("q", ["*", "%", "_"])
+def test_wildcard_characters_in_a_search_match_only_themselves(client_as, q):
+    response = client_as("sales").get("/customers", params={"q": q})
+
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "total": 0}
+
+
 def test_no_search_lists_every_active_customer(client_as):
     response = client_as("sales").get("/customers")
 

@@ -29,6 +29,11 @@ export default function CustomersPage() {
     listCustomers({ q, page }).then(
       (next) => {
         if (!current) return;
+        // Past the last page of this search (it has fewer matches): go to its last page.
+        if (next.items.length === 0 && next.total > 0) {
+          setPage(Math.ceil(next.total / CUSTOMERS_PER_PAGE));
+          return;
+        }
         setResult(next);
         setError(null);
       },
