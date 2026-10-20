@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import ErrorMessage from "./ErrorMessage";
 import type { Product, ProductInput } from "../lib/products";
-import "./ProductForm.css";
+import "./RecordForm.css";
 
 // Owner: Part 1
 
@@ -84,7 +84,7 @@ export default function ProductForm({ product, onSave, onDone }: Props) {
   }
 
   return (
-    <form className="product-form" onSubmit={submit} noValidate>
+    <form className="record-form" onSubmit={submit} noValidate>
       <h2>{product ? `Edit ${product.sku}` : "Add product"}</h2>
       {(Object.keys(LABELS) as Field[]).map((field) => (
         <label key={field}>

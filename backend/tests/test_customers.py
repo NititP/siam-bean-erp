@@ -127,3 +127,110 @@ def test_warehouse_is_refused_the_customer_list(client_as):
 
     assert response.status_code == 403
     assert response.json()["detail"]
+
+
+# ---------- Ticket 08: create and edit (admin and sales) ----------
+
+NEW_CUSTOMER = {"name": "Roast Room Thonglor", "tax_id": "0105564000044", "payment_terms_days": 15}
+EDITORS = ["admin", "sales"]
+NOT_EDITORS = ["accountant", "warehouse"]
+
+
+def customer(client, name: str) -> dict:
+    [row] = client.get("/customers", params={"q": name}).json()["items"]
+    return row
+
+
+@pytest.mark.parametrize("role", EDITORS)
+def test_admin_and_sales_create_a_customer(client_as, role):
+    client = client_as(role)
+
+    response = client.post("/customers", json=NEW_CUSTOMER)
+
+    assert response.status_code == 201
+    created = customer(client, "Roast Room")
+    assert created["name"] == "Roast Room Thonglor"
+    assert created["tax_id"] == "0105564000044"
+    assert created["payment_terms_days"] == 15
+    assert created["active"] is True
+
+
+@pytest.mark.parametrize(
+    "bad, field",
+    [
+        ({"tax_id": ""}, "Tax ID"),
+        ({"tax_id": "   "}, "Tax ID"),
+        ({"name": ""}, "Name"),
+        ({"name": "   "}, "Name"),
+    ],
+)
+def test_a_blank_name_or_tax_id_is_422_naming_the_field(client_as, bad, field):
+    client = client_as("sales")
+
+    response = client.post("/customers", json={**NEW_CUSTOMER, **bad})
+
+    assert response.status_code == 422
+    assert field in response.json()["detail"]
+    assert client.get("/customers", params={"q": "Roast Room"}).json()["total"] == 0
+
+
+@pytest.mark.parametrize("missing, field", [("tax_id", "Tax ID"), ("name", "Name")])
+def test_a_missing_name_or_tax_id_is_422_naming_the_field(client_as, missing, field):
+    body = {k: v for k, v in NEW_CUSTOMER.items() if k != missing}
+
+    response = client_as("sales").post("/customers", json=body)
+
+    assert response.status_code == 422
+    assert field in response.json()["detail"]
+
+
+def test_negative_payment_terms_are_422(client_as):
+    client = client_as("sales")
+    lune = customer(client, "Café Lune")
+
+    created = client.post("/customers", json={**NEW_CUSTOMER, "payment_terms_days": -1})
+    edited = client.patch(f"/customers/{lune['id']}", json={"payment_terms_days": -1})
+
+    assert created.status_code == 422
+    assert edited.status_code == 422
+    assert customer(client, "Café Lune")["payment_terms_days"] == 30
+
+
+@pytest.mark.parametrize("role", EDITORS)
+def test_admin_and_sales_edit_a_customer(client_as, role):
+    client = client_as(role)
+    lune = customer(client, "Café Lune")
+
+    response = client.patch(f"/customers/{lune['id']}", json={"name": "Café Lune Ari", "payment_terms_days": 45})
+
+    assert response.status_code == 200
+    edited = customer(client, "Café Lune")
+    assert edited["name"] == "Café Lune Ari"
+    assert edited["payment_terms_days"] == 45
+    assert edited["tax_id"] == "0105561000011"
+
+
+def test_editing_an_unknown_customer_is_404_from_our_code(client_as):
+    response = client_as("sales").patch("/customers/999999", json={"payment_terms_days": 7})
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Customer 999999 not found."
+
+
+@pytest.mark.parametrize("role", NOT_EDITORS)
+def test_accountant_and_warehouse_cannot_create_a_customer(client_as, role):
+    response = client_as(role).post("/customers", json=NEW_CUSTOMER)
+
+    assert response.status_code == 403
+    assert client_as("admin").get("/customers", params={"q": "Roast Room"}).json()["total"] == 0
+
+
+@pytest.mark.parametrize("role", NOT_EDITORS)
+def test_accountant_and_warehouse_cannot_edit_a_customer(client_as, role):
+    admin = client_as("admin")
+    lune = customer(admin, "Café Lune")
+
+    response = client_as(role).patch(f"/customers/{lune['id']}", json={"payment_terms_days": 0})
+
+    assert response.status_code == 403
+    assert customer(admin, "Café Lune")["payment_terms_days"] == 30
