@@ -1,0 +1,34 @@
+/* Owner: Part 3 (built by Part 2). Record-payment form on the Accounting page. */
+
+.payment-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  white-space: normal;
+}
+
+.payment-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9em;
+}
+
+.payment-form input {
+  width: 9em;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.payment-form .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.success {
+  color: #1a7f37;
+  font-weight: 600;
+}

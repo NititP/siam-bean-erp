@@ -7,3 +7,8 @@ import type { Invoice } from "./invoices";
 export function listReceivables(): Promise<Invoice[]> {
   return api<Invoice[]>("/accounting/receivables");
 }
+
+/** Admin and accountant only. Returns the invoice after the payment: paid once nothing is outstanding. */
+export function recordPayment(invoiceId: number, amount: number): Promise<Invoice> {
+  return api<Invoice>(`/invoices/${invoiceId}/payments`, { method: "POST", body: { amount } });
+}
