@@ -143,7 +143,8 @@ Money in JSON is a number with 2 decimals (`9630.00`). The frontend only
 formats it with `formatTHB` and never recalculates VAT or totals.
 
 Errors: `{"detail": "<message that says what to fix>"}`. 401 not logged in,
-403 wrong role, 404 not found, 409 not enough stock, 422 bad input.
+403 wrong role, 404 not found, 409 not enough stock, 422 bad input, 503
+Supabase out of reach (handled once in `app/main.py`).
 
 ## How login works
 
@@ -152,6 +153,10 @@ Errors: `{"detail": "<message that says what to fix>"}`. 401 not logged in,
 3. `app/auth.py` checks the token with `supabase.auth.get_user(token)`, then
    loads the row from `users` to get `role` and `company_id`.
 4. A dependency `require_roles("admin", "sales")` returns 403 for anyone else.
+5. `app/main.py` already requires a login for every router, so an endpoint
+   with no `require_roles` still answers 401 without a token. Add
+   `require_roles(...)` wherever the role table limits who may call it. A test
+   checks every endpoint except `/health` answers 401 without a token.
 
 ## Tests
 
