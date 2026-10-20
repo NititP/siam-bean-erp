@@ -1,0 +1,44 @@
+.product-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  max-width: 720px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.product-form h2,
+.product-form .error[role="alert"],
+.product-form .form-actions {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.product-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.product-form input {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.product-form input[aria-invalid="true"] {
+  border-color: var(--error);
+}
+
+.product-form label .error {
+  font-size: 0.85em;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
