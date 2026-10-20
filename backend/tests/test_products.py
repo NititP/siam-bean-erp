@@ -175,3 +175,46 @@ def test_other_roles_cannot_edit_a_product(client_as, role):
 
     assert response.status_code == 403
     assert by_sku(client.get("/products"))["ARB-1KG"]["price"] == 450.00
+
+
+# ---------- Ticket 06: deactivate and reactivate (admin only) ----------
+
+
+def test_deactivating_a_product_hides_it_from_the_default_list(client_as):
+    admin = client_as("admin")
+
+    response = admin.post(f"/products/{product_id(admin, 'DRP-10')}/deactivate")
+
+    assert response.status_code == 200
+    assert "DRP-10" not in by_sku(admin.get("/products"))
+    shown = by_sku(admin.get("/products", params={"include_inactive": "true"}))
+    assert shown["DRP-10"]["active"] is False
+
+
+def test_patching_active_true_brings_a_product_back(client_as):
+    admin = client_as("admin")
+    drip = product_id(admin, "DRP-10")
+    admin.post(f"/products/{drip}/deactivate")
+    assert "DRP-10" not in by_sku(admin.get("/products"))
+
+    response = admin.patch(f"/products/{drip}", json={"active": True})
+
+    assert response.status_code == 200
+    assert by_sku(admin.get("/products"))["DRP-10"]["active"] is True
+
+
+@pytest.mark.parametrize("role", OTHER_ROLES)
+def test_other_roles_cannot_deactivate_a_product(client_as, role):
+    client = client_as(role)
+
+    response = client.post(f"/products/{product_id(client, 'DRP-10')}/deactivate")
+
+    assert response.status_code == 403
+    assert "DRP-10" in by_sku(client.get("/products"))
+
+
+def test_deactivating_an_unknown_product_is_404_from_our_code(client_as):
+    response = client_as("admin").post("/products/999999/deactivate")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Product 999999 not found."

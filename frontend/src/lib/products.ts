@@ -33,3 +33,13 @@ export function createProduct(input: ProductInput): Promise<Product> {
 export function editProduct(id: number, input: ProductInput): Promise<Product> {
   return api<Product>(`/products/${id}`, { method: "PATCH", body: input });
 }
+
+/** Admin only. Hidden from lists and new orders; old documents keep it. */
+export function deactivateProduct(id: number): Promise<Product> {
+  return api<Product>(`/products/${id}/deactivate`, { method: "POST" });
+}
+
+/** Admin only. */
+export function reactivateProduct(id: number): Promise<Product> {
+  return api<Product>(`/products/${id}`, { method: "PATCH", body: { active: true } });
+}
