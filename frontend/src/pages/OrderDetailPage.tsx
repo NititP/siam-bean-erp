@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ErrorMessage from "../components/ErrorMessage";
 import { formatTHB } from "../lib/money";
-import { getOrder, STATUS_LABELS, type Order } from "../lib/orders";
+import { confirmOrder, getOrder, STATUS_LABELS, type ConfirmResult, type Order } from "../lib/orders";
 import "../components/DataTable.css";
 import "./Orders.css";
 
@@ -11,12 +11,29 @@ export default function OrderDetailPage() {
   const { id = "" } = useParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<unknown>(null);
+  const [issued, setIssued] = useState<ConfirmResult | null>(null);
 
   useEffect(() => {
     getOrder(id).then(setOrder, setError);
   }, [id]);
 
   const isDraft = order?.status === "draft";
+
+  async function confirm() {
+    if (!order) return;
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      setIssued(await confirmOrder(order.id));
+      setOrder(await getOrder(order.id));
+    } catch (err) {
+      setConfirmError(err);
+    } finally {
+      setConfirming(false);
+    }
+  }
 
   return (
     <section>
@@ -84,6 +101,20 @@ export default function OrderDetailPage() {
               </tfoot>
             </table>
           </div>
+          {issued && (
+            <p className="success" role="status">
+              Confirmed. Invoice <Link to={`/invoices/${issued.invoice_id}`}>{issued.invoice_number}</Link> issued for{" "}
+              {formatTHB(issued.total)} (incl. VAT).
+            </p>
+          )}
+          <ErrorMessage error={confirmError} />
+          {isDraft && (
+            <p>
+              <button onClick={confirm} disabled={confirming}>
+                {confirming ? "Confirming…" : "Confirm order"}
+              </button>
+            </p>
+          )}
         </>
       )}
     </section>

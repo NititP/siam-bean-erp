@@ -96,3 +96,8 @@
     grid-template-columns: 1fr;
   }
 }
+
+.success {
+  color: #1a7f37;
+  font-weight: 600;
+}

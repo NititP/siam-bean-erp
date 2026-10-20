@@ -289,3 +289,138 @@ def test_only_sales_and_admin_may_list_orders(client_as, role):
     response = client_as(role).get("/orders")
 
     assert response.status_code == 403
+
+
+# ---------- Confirm to invoice (ticket 14) ----------------------------------
+
+
+def on_hand(client, sku: str) -> int:
+    return next(p["on_hand"] for p in client.get("/products").json() if p["sku"] == sku)
+
+
+def confirm(client, order: dict):
+    return client.post(f"/orders/{order['id']}/confirm")
+
+
+def test_confirming_cafe_lunes_order_takes_stock_out_and_issues_inv_0001(client_as):
+    # US-1: 170 kg on hand, 20 kg at 450 THB → 150 kg and 9,000 + 630 VAT = 9,630.
+    sales = client_as("sales")
+    assert on_hand(sales, "ARB-1KG") == 170
+    order = new_order(sales, lines=[("ARB-1KG", 20)]).json()
+
+    response = confirm(sales, order)
+
+    assert response.status_code == 200
+    invoice = response.json()
+    assert invoice["invoice_number"] == "INV-0001"
+    assert invoice["order_number"] == "SO-0001"
+    assert invoice["subtotal"] == 9000.00
+    assert invoice["vat"] == 630.00
+    assert invoice["total"] == 9630.00
+    assert on_hand(sales, "ARB-1KG") == 150
+    assert sales.get(f"/orders/{order['id']}").json()["status"] == "confirmed"
+
+
+def test_confirming_more_than_on_hand_is_409_and_changes_nothing(client_as):
+    # US-1: "Not enough stock for ARB-1KG" and nothing changes.
+    sales = client_as("sales")
+    too_much = new_order(sales, lines=[("ARB-1KG", 171)]).json()
+
+    response = confirm(sales, too_much)
+
+    assert response.status_code == 409
+    assert "Not enough stock for ARB-1KG" in response.json()["detail"]
+    assert on_hand(sales, "ARB-1KG") == 170
+    assert sales.get(f"/orders/{too_much['id']}").json()["status"] == "draft"
+    # The failed confirm used no invoice number.
+    assert confirm(sales, new_order(sales).json()).json()["invoice_number"] == "INV-0001"
+
+
+def test_one_short_line_stops_the_whole_order(client_as):
+    sales = client_as("sales")
+    order = new_order(sales, lines=[("ARB-1KG", 20), ("ROB-1KG", 36)]).json()
+
+    response = confirm(sales, order)
+
+    assert response.status_code == 409
+    assert "Not enough stock for ROB-1KG" in response.json()["detail"]
+    assert on_hand(sales, "ARB-1KG") == 170
+    assert on_hand(sales, "ROB-1KG") == 35
+
+
+def test_admin_can_confirm(client_as):
+    admin = client_as("admin")
+
+    response = confirm(admin, new_order(admin).json())
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("role", ["warehouse", "accountant"])
+def test_only_sales_and_admin_may_confirm(client_as, role):
+    # US-3: a Warehouse user calling confirm directly gets 403.
+    sales = client_as("sales")
+    order = new_order(sales).json()
+
+    response = confirm(client_as(role), order)
+
+    assert response.status_code == 403
+    assert on_hand(sales, "ARB-1KG") == 170
+    assert sales.get(f"/orders/{order['id']}").json()["status"] == "draft"
+
+
+def test_confirming_twice_is_422(client_as):
+    sales = client_as("sales")
+    order = new_order(sales).json()
+    confirm(sales, order)
+
+    response = confirm(sales, order)
+
+    assert response.status_code == 422
+    assert response.json()["detail"]
+    assert on_hand(sales, "ARB-1KG") == 150  # stock went out once only
+
+
+def test_confirming_a_cancelled_order_is_422(client_as):
+    from app.db import get_db
+
+    sales = client_as("sales")
+    order = new_order(sales).json()
+    # Setup only: cancelling through the API is ticket 12.
+    get_db().table("sales_orders").update({"status": "cancelled"}).eq("id", order["id"]).execute()
+
+    response = confirm(sales, order)
+
+    assert response.status_code == 422
+    assert on_hand(sales, "ARB-1KG") == 170
+
+
+def test_confirming_an_unknown_order_is_404(client_as):
+    response = client_as("sales").post(f"/orders/{UNKNOWN_ID}/confirm")
+
+    assert response.status_code == 404
+    assert response.json()["detail"]
+
+
+@pytest.mark.parametrize(("customer", "terms_days"), [("Café Lune", 30), ("Brew Lab Ari", 0)])
+def test_the_invoice_is_due_after_the_customers_payment_terms(client_as, customer, terms_days):
+    from datetime import date, timedelta
+
+    sales = client_as("sales")
+
+    invoice = confirm(sales, new_order(sales, customer=customer).json()).json()
+
+    issued = date.fromisoformat(invoice["issue_date"])
+    assert date.fromisoformat(invoice["due_date"]) == issued + timedelta(days=terms_days)
+
+
+def test_a_price_change_after_the_order_does_not_change_the_invoice(client_as):
+    sales = client_as("sales")
+    order = new_order(sales, lines=[("ARB-1KG", 20)]).json()
+    admin = client_as("admin")
+    admin.patch(f"/products/{product_ids(admin)['ARB-1KG']}", json={"price": 500})
+
+    invoice = confirm(sales, order).json()
+
+    assert invoice["subtotal"] == 9000.00
+    assert invoice["total"] == 9630.00
