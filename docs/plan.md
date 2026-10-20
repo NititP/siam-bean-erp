@@ -11,15 +11,44 @@ so three agent sessions can work at the same time without touching each other.
 | Part | Folder | Ports (API / web) | Module | Backend files | Frontend pages |
 | --- | --- | --- | --- | --- | --- |
 | 1 | `siam-bean-erp-1` | 8000 / 5173 | Products, customers, stock, dashboard, purchasing (bonus) | `app/routers/products.py`, `customers.py`, `stock.py`, `dashboard.py`, `purchasing.py` | Products, Customers, Stock in, Dashboard, Purchase orders |
-| 2 | `siam-bean-erp-2` | 8001 / 5174 | Sales orders, confirm to invoice, invoices, PDF (bonus) | `app/routers/orders.py`, `invoices.py` | Orders, New order, Order detail, Invoices, Invoice detail |
-| 3 | `siam-bean-erp` | 8002 / 5175 | Foundation, login and roles, payments, deploy | `app/main.py`, `app/auth.py`, `app/db.py`, `app/routers/me.py`, `app/routers/accounting.py`, `tests/conftest.py` | Login, layout and menu, access denied, Accounting |
+| 2 | `siam-bean-erp-2` | 8001 / 5174 | Sales orders, confirm to invoice, invoices, PDF (bonus) | `app/routers/orders.py`, `invoices.py`, the `create_order` function in `docs/schema.sql` | Orders, New order, Order detail, Invoices, Invoice detail |
+| 3 | `siam-bean-erp` | 8002 / 5175 | Foundation, login and roles, payments, deploy | `app/main.py`, `app/auth.py`, `app/db.py`, `app/routers/me.py`, `app/routers/accounting.py` (includes `POST /invoices/{id}/payments`), `tests/conftest.py`; frontend shared files: routes (`App.tsx`), menu, `api.ts`, `formatTHB`, empty-list and error components | Login, layout and menu, access denied, Accounting |
 
 Only edit your own files. If you need a change in someone else's file, ask them.
 
+## Start order
+
+1. Part 3 builds the skeleton and pushes it before Parts 1 and 2 start:
+   - Backend: `main.py` already includes every router (`me`, `products`,
+     `customers`, `stock`, `dashboard`, `purchasing`, `orders`, `invoices`,
+     `accounting`), each starting as an empty `APIRouter()` in its owner's
+     file; `auth.py` with `require_roles`; `db.py`; `tests/conftest.py` with
+     the file lock and `client_as(role)`; passing tests for `/health` and `/me`.
+   - Frontend: a route for every page, pointing at a placeholder component in
+     its owner's file; menu filtered by role; `api.ts` (adds the token, shows
+     `detail`); `formatTHB`; shared empty-list and error components.
+2. Parts 1 and 2 pull the skeleton, then edit only their own router, page and
+   test files. They never touch routing or `main.py`.
+3. After the skeleton, shared files belong to Part 3. Ask for changes.
+4. Each part's tests live in their own files (`tests/test_products.py`,
+   `tests/test_orders.py`, ...). No shared test files.
+
+## Git
+
+- One remote, `NititP/siam-bean-erp`. Everyone commits straight to `main`.
+  `main` deploys, so whatever is pushed goes live.
+- Before every push: `uv run pytest` passes (and `npm run build` for frontend
+  changes), then `git pull --rebase`, then push.
+- A rebase conflict means two parts edited the same file. Stop and ask its
+  owner; don't resolve it by guessing.
+- Tickets in `.scratch/` travel the same way. Commit them promptly.
+
 ## Stack
 
-- Database and login: Supabase (Postgres + Auth). Two projects: **live** (the
-  deployed app) and **test** (only `uv run pytest` uses it).
+- Database and login: Supabase (Postgres + Auth). **One project**, used by
+  both the deployed app and `uv run pytest`. The tests reset its data, so
+  running them wipes every order, invoice, payment and stock movement made in
+  the app.
 - Backend: Python FastAPI, managed with `uv`, in `backend/`. Talks to Supabase
   with the **secret key** using the `supabase` Python package.
 - Frontend: React + TypeScript + Vite in `frontend/`. Uses Supabase only to
@@ -29,9 +58,15 @@ Only edit your own files. If you need a change in someone else's file, ask them.
 ## Database
 
 - The full schema is `docs/schema.sql`, sample data `docs/seed.sql`, demo
-  logins `docs/demo_users.sql`. Already run in both projects.
+  logins `docs/demo_users.sql`. Already run in the project.
 - Business logic that must be all-or-nothing lives in Postgres functions,
   called from FastAPI with `rpc`:
+  - `create_order(company_id, customer_id, user_id, lines jsonb)` - checks
+    the customer and products exist and are active, takes the next SO number,
+    inserts the draft order and its lines with `unit_price` and `unit_cost`
+    copied from the product, all in one transaction. Raises `SB404` not found,
+    `SB422` bad input. Added by Part 2 (append to `docs/schema.sql`, then run it
+    once in the SQL Editor; never change existing objects).
   - `confirm_order(order_id, user_id)` - stock check, stock out, INV number,
     subtotal, 7% VAT, total, status confirmed. Raises `SB409` "Not enough
     stock for <SKU>", `SB422` wrong state, `SB404` not found.
@@ -45,6 +80,11 @@ Only edit your own files. If you need a change in someone else's file, ask them.
 - Stock on hand is the `stock_on_hand` view (sum of movements). Never store
   or type a stock number.
 - Order lines copy `unit_price` and `unit_cost` from the product when created.
+- Deactivated products and customers: hidden from lists unless
+  `?include_inactive=true` (admin screens have a "Show inactive" toggle);
+  cannot go on new orders (`create_order` raises 422 "Customer <name> is
+  inactive"); drafts made before deactivation can still be confirmed; not
+  counted in low-stock count or stock value.
 
 ## Roles (checked in FastAPI on every endpoint; wrong role = 403)
 
@@ -71,18 +111,30 @@ gets 403 on `/accounting`.
 | `GET /health` | anyone | no login needed |
 | `GET /me` | all | email, full_name, role |
 | `GET /products` | all | includes `on_hand`, `low_stock`; `?include_inactive=true` |
-| `POST /products`, `PATCH /products/{id}`, `POST /products/{id}/deactivate` | admin | |
-| `GET /customers?q=&page=` | admin, sales, accountant | name contains q (case-insensitive), 20 per page, returns `total` |
-| `POST /customers`, `PATCH /customers/{id}`, `POST /customers/{id}/deactivate` | admin, sales | tax ID required |
-| `POST /stock/in` | admin, warehouse | `{product_id, quantity, note}`, quantity > 0 |
+| `POST /products`, `PATCH /products/{id}`, `POST /products/{id}/deactivate` | admin | reactivate with `PATCH {"active": true}` |
+| `GET /customers?q=&page=` | admin, sales, accountant | name contains q (case-insensitive), 20 per page, returns `total`; `?include_inactive=true` |
+| `POST /customers`, `PATCH /customers/{id}`, `POST /customers/{id}/deactivate` | admin, sales | tax ID required; reactivate with `PATCH {"active": true}` |
+| `POST /stock/in` | admin, warehouse | `{product_id, quantity, note}`, quantity > 0, note optional; saved as `ref_doc` = `STOCK-IN` or `STOCK-IN: <note>` |
 | `GET /orders`, `GET /orders/{id}`, `POST /orders` | admin, sales | create = draft with lines `{customer_id, lines:[{product_id, quantity}]}` |
 | `POST /orders/{id}/confirm` | admin, sales | calls `confirm_order`; 409 on not enough stock |
+| `POST /orders/{id}/cancel` | admin, sales | drafts only (`update ... where status = 'draft'`); 422 "Only draft orders can be cancelled". No editing drafts: cancel and create a new one |
 | `GET /invoices`, `GET /invoices/{id}` | admin, sales, accountant | |
 | `GET /invoices/{id}/pdf` | admin, sales, accountant | bonus |
 | `GET /accounting/receivables` | admin, accountant | open invoices with outstanding amount |
 | `POST /invoices/{id}/payments` | admin, accountant | `{amount}`; calls `record_payment` |
 | `GET /dashboard` | all | calls `dashboard_numbers` |
 | `GET /suppliers`, `GET/POST /purchase-orders`, `POST /purchase-orders/{id}/receive` | admin, warehouse | bonus |
+
+Invoice shape (same fields in `GET /invoices`, `GET /invoices/{id}` and
+`GET /accounting/receivables`, so every screen shows the same numbers):
+`number, order_number, customer_name, issue_date, due_date, subtotal, vat,
+total, status, paid, outstanding`, where `paid` = sum of payments and
+`outstanding = total - paid`. The detail response also has `lines` and
+`payments` (`amount, paid_at`). Payments are recorded only on the Accounting
+screen; the invoice detail page has no "Record payment" button.
+
+Money in JSON is a number with 2 decimals (`9630.00`). The frontend only
+formats it with `formatTHB` and never recalculates VAT or totals.
 
 Errors: `{"detail": "<message that says what to fix>"}`. 401 not logged in,
 403 wrong role, 404 not found, 409 not enough stock, 422 bad input.
@@ -98,8 +150,13 @@ Errors: `{"detail": "<message that says what to fix>"}`. 401 not logged in,
 ## Tests
 
 - `uv run pytest` from `backend/`. Tests use FastAPI's `TestClient`.
-- Tests read `backend/.env.test` (the **test** Supabase project). A guard in
-  `tests/conftest.py` refuses to run if the URL is the live project.
+- Tests read `backend/.env.test`, which points to the same Supabase project
+  as `backend/.env`. Tests reset that project's data.
+- Only one test run at a time across the three repo copies: `tests/conftest.py`
+  holds a file lock outside the repos (`%TEMP%\siam-bean-pytest.lock`, using
+  the `filelock` package) for the whole run. A second run waits for the first.
+- Tests wipe the app's data. Call `reset_demo_data('yes-reset')` once right
+  before the demo, and never run tests during the demo.
 - Before each test, call `reset_demo_data('yes-reset')`.
 - Tests override only the token check: a fixture `client_as(role)` logs the
   request in as the matching demo user from the `users` table.
@@ -109,6 +166,13 @@ Errors: `{"detail": "<message that says what to fix>"}`. 401 not logged in,
 ## Frontend rules
 
 - Money: `9,630.00 THB` everywhere (one shared `formatTHB` helper).
+- New order page (pain point 4): the product picker shows stock on hand and
+  the low-stock badge; a line over stock on hand shows a warning ("Only 35 kg
+  on hand") but the draft can still be saved; order detail shows on hand for
+  each line of a draft. Confirm is the only real check and shows the API's
+  "Not enough stock for <SKU>". No new API: use `GET /products`.
+- Dashboard tile is labelled "Sales today (incl. VAT)": it is the invoice
+  total, so it matches the invoice and open receivables.
 - Every list shows a message when it is empty.
 - Every error shows the API's `detail` text.
 - Menu shows only what the role may use; hidden buttons are not security,
@@ -117,7 +181,9 @@ Errors: `{"detail": "<message that says what to fix>"}`. 401 not logged in,
 
 ## Environment variables (never commit real values)
 
-`backend/.env` (live) and `backend/.env.test` (test project):
+`backend/.env` (the app) and `backend/.env.test` (the tests). Both point to
+the same Supabase project, so `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are the
+same in both:
 ```
 SUPABASE_URL=
 SUPABASE_SECRET_KEY=
@@ -134,3 +200,10 @@ VITE_API_URL=http://localhost:8000
 
 Quotations, delivery notes, multiple companies, HR, withholding tax,
 multiple warehouses, LINE. Bonus only: purchasing and PDF invoice.
+Possible bonus: stock adjustments (manual stock out or corrections). The
+Warehouse role's "stock out" in the scenario means the stock that leaves
+automatically when an order is confirmed.
+No user management screen: users and their roles are set in Supabase
+(Authentication > Users, then an insert like `docs/demo_users.sql`).
+No cancelling confirmed orders or invoices (that needs stock reversal and
+credit notes). `invoices.status = 'cancelled'` is never set.

@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Siam Bean Co. Mini ERP: database schema
--- Run once in the Supabase SQL Editor, in BOTH projects (live and test).
+-- Run once in the Supabase SQL Editor. One project serves the app and the tests.
 -- =====================================================================
 
 -- ---------- Master data ----------------------------------------------
@@ -332,7 +332,7 @@ $$;
 
 -- Put the data back to the demo starting point: master data as in the
 -- scenario, no documents, opening stock only. Tests call this before
--- each test; run it on the live project once before the demo.
+-- each test (wiping app data); run it once right before the demo.
 create or replace function reset_demo_data(p_confirm text)
 returns void language plpgsql security definer set search_path = public as $$
 begin

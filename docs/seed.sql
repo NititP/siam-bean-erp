@@ -1,5 +1,5 @@
 -- =====================================================================
--- Siam Bean Co. sample data. Run once, after schema.sql, in BOTH projects.
+-- Siam Bean Co. sample data. Run once, after schema.sql, in the project.
 -- =====================================================================
 insert into companies (name, tax_id) values ('Siam Bean Co.', '0105560000000');
 
