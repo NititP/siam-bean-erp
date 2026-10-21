@@ -1,7 +1,7 @@
 # 21: Part 1: Bonus: receive a purchase order
 
 Part: 1
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Admin or Warehouse receives a draft purchase order and its quantities are added to stock on hand, once.
 

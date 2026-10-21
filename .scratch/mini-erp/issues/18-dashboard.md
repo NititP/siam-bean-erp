@@ -1,7 +1,7 @@
 # 18: Part 1: Dashboard
 
 Part: 1
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Every staff member opens the dashboard and sees five live numbers: sales today (incl. VAT), low-stock count, open invoices count, open receivables and stock value.
 
