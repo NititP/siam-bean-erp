@@ -62,3 +62,57 @@ def test_sales_gets_403_on_suppliers_and_purchase_orders(client_as):
 
     assert sales.get("/suppliers").status_code == 403
     assert sales.post("/purchase-orders", json={"supplier_id": 1, "lines": []}).status_code == 403
+
+
+# ---------- Receive a purchase order (ticket 21) ------------------------------
+
+
+def on_hand(client, sku: str) -> int:
+    [product] = [p for p in client.get("/products").json() if p["sku"] == sku]
+    return product["on_hand"]
+
+
+def receive(client, po_id: int):
+    return client.post(f"/purchase-orders/{po_id}/receive")
+
+
+@pytest.mark.parametrize("role", ["admin", "warehouse"])
+def test_receiving_po_0001_takes_arb_1kg_from_170_to_370(client_as, role):
+    client = client_as(role)
+    po = new_purchase_order(client).json()
+    assert on_hand(client, "ARB-1KG") == 170
+
+    response = receive(client, po["id"])
+
+    assert response.status_code == 200
+    assert on_hand(client, "ARB-1KG") == 370
+    [listed] = client.get("/purchase-orders").json()
+    assert (listed["number"], listed["status"]) == ("PO-0001", "received")
+
+
+def test_receiving_twice_returns_422_and_leaves_stock_unchanged(client_as):
+    client = client_as("warehouse")
+    po = new_purchase_order(client).json()
+    receive(client, po["id"])
+
+    response = receive(client, po["id"])
+
+    assert response.status_code == 422
+    assert "Purchase order PO-0001 was already received" in response.json()["detail"]
+    assert on_hand(client, "ARB-1KG") == 370
+
+
+def test_sales_gets_403_on_receive(client_as):
+    po = new_purchase_order(client_as("admin")).json()
+    sales = client_as("sales")
+
+    assert receive(sales, po["id"]).status_code == 403
+    assert on_hand(sales, "ARB-1KG") == 170
+
+
+def test_accountant_gets_403_on_receive(client_as):
+    po = new_purchase_order(client_as("admin")).json()
+    accountant = client_as("accountant")
+
+    assert receive(accountant, po["id"]).status_code == 403
+    assert on_hand(accountant, "ARB-1KG") == 170
