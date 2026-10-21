@@ -1,7 +1,7 @@
 # 03: Part 3: Deploy live
 
 Part: 3
-Status: ready-for-agent
+Status: claimed
 
 **What to build:** The app is live at a public URL: backend on Render, frontend on Cloudflare Pages, both deploying from `main`. A demo user can log in on the live site and see their name and role.
 

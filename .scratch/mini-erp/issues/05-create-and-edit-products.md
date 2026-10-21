@@ -1,7 +1,7 @@
 # 05: Part 1: Create and edit products
 
 Part: 1
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** The Admin creates products and edits them, including the price. Bad input is rejected with a message that says what to fix. Other roles are refused.
 

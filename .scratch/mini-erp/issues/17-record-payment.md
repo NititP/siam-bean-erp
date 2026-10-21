@@ -1,11 +1,11 @@
-# 17: Part 3: Record a payment
+# 17: Part 2: Record a payment
 
-Part: 3
-Status: ready-for-agent
+Part: 2
+Status: resolved
 
 **What to build:** The Accountant records a payment against an open invoice. A full payment marks it paid; a partial payment lowers what is outstanding.
 
-**Blocked by:** 16 (Part 3: Accounting screen with receivables)
+**Blocked by:** 16 (Part 2: Accounting screen with receivables)
 
 Spec: `.scratch/mini-erp/spec.md`. Plan: `docs/plan.md`.
 

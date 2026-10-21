@@ -1,7 +1,7 @@
 # 02: Part 3: Login, current user and roles
 
 Part: 3
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Staff log in with email and password, see their name and role, and see a menu with only the screens their role may use. Opening a screen their role may not use shows an access-denied page. The API checks the token on every request and offers a role requirement that returns 403 to anyone else. Tests can log in as any demo user by role.
 

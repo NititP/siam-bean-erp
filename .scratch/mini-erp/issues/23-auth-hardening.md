@@ -1,7 +1,7 @@
 # 23: Part 3: Auth hardening (review follow-ups from 02)
 
 Part: 3
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Close the three gaps the ticket 02 review found, before Parts 1 and 2 add real endpoints. Every endpoint except the health check needs a login without each owner having to remember it. When Supabase cannot be reached, the API answers with a clear message instead of a bare server error. Every demo login, including the second sales user, is checked.
 

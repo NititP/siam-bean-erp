@@ -1,7 +1,7 @@
 # 14: Part 2: Confirm sales order to invoice
 
 Part: 2
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** A Sales user confirms a draft. Stock goes out and an invoice is issued with 7% VAT, all at once or not at all. Too little stock shows a clear error and nothing changes.
 

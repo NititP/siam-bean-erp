@@ -1,7 +1,7 @@
 # 07: Part 1: Customer list with search and paging
 
 Part: 1
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Sales, the Accountant and the Admin see the customer list and search it by part of the name, 20 rows per page with a total count. Warehouse is refused.
 

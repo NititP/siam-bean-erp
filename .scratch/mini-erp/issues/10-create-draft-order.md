@@ -1,7 +1,7 @@
 # 10: Part 2: Create a draft sales order
 
 Part: 2
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** A Sales user picks a customer, adds order lines (product and quantity) and saves a draft sales order. It gets the next `SO-` number, and every line copies the product's current price and cost. Creating the order is all or nothing. The New order page shows stock on hand and the low-stock badge for each product, and warns (without blocking) when a line asks for more than is on hand. After saving, the user lands on the order detail.
 

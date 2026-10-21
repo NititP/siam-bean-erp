@@ -1,7 +1,7 @@
-# 16: Part 3: Accounting screen with receivables
+# 16: Part 2: Accounting screen with receivables
 
-Part: 3
-Status: ready-for-agent
+Part: 2
+Status: resolved
 
 **What to build:** The Accountant and the Admin open the Accounting screen and see every open invoice with what is still owed. Sales cannot.
 
