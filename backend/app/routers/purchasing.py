@@ -133,3 +133,10 @@ def create_purchase_order(body: PurchaseOrderIn, user: CurrentUser = Depends(req
         ]
     ).execute()
     return purchase_order(user.company_id, po["id"])
+
+
+@router.post("/purchase-orders/{po_id}/receive")
+def receive_purchase_order(po_id: int, user: CurrentUser = Depends(require_roles(*BUYERS))):
+    """receive_po adds every line's quantity to stock on hand, once; again is 422."""
+    purchase_order(user.company_id, po_id)  # 404 for another company's PO
+    return db_call(get_db().rpc("receive_po", {"p_po_id": po_id, "p_user": user.id}))
