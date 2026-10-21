@@ -1,0 +1,38 @@
+/* Owner: Part 1. Number tiles on the Dashboard page. */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.tile {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.tile-alert {
+  border-color: var(--error);
+}
+
+.tile-label {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.tile-value {
+  margin-top: 4px;
+  font-size: 1.6em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-alert .tile-value {
+  color: var(--error);
+}
+
+.tile-detail {
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
