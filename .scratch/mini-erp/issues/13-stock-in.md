@@ -1,7 +1,7 @@
 # 13: Part 2: Stock in
 
 Part: 2
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** A Warehouse user records goods arriving: product, quantity and an optional note. Stock on hand goes up immediately.
 

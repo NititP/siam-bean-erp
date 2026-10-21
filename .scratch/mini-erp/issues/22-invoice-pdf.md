@@ -1,7 +1,7 @@
 # 22: Part 2: Bonus: invoice PDF
 
 Part: 2
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Sales, the Accountant and the Admin download an invoice as a PDF with the company and customer tax IDs, lines, subtotal, VAT and total.
 

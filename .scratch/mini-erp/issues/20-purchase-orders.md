@@ -1,7 +1,7 @@
 # 20: Part 1: Bonus: purchase orders
 
 Part: 1
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Admin and Warehouse see suppliers and create a draft purchase order with lines (product, quantity, unit cost), numbered `PO-0001`.
 
