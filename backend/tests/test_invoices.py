@@ -146,3 +146,26 @@ def test_warehouse_gets_403_on_invoices(client_as):
 
     assert warehouse.get("/invoices").status_code == 403
     assert warehouse.get(f"/invoices/{issued['invoice_id']}").status_code == 403
+
+
+# ---------- PDF (ticket 22, bonus) -------------------------------------------
+
+
+def test_the_cafe_lune_invoice_downloads_as_inv_0001_pdf(client_as):
+    sales = client_as("sales")
+    issued = invoice_for(sales)
+
+    response = sales.get(f"/invoices/{issued['invoice_id']}/pdf")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert 'filename="INV-0001.pdf"' in response.headers["content-disposition"]
+    assert response.content.startswith(b"%PDF")
+
+
+def test_warehouse_gets_403_on_the_invoice_pdf(client_as):
+    issued = invoice_for(client_as("sales"))
+
+    response = client_as("warehouse").get(f"/invoices/{issued['invoice_id']}/pdf")
+
+    assert response.status_code == 403

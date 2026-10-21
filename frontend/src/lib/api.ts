@@ -18,7 +18,20 @@ type Options = {
 };
 
 /** Call our FastAPI with the logged-in user's token. Throws ApiError on any non-2xx. */
-export async function api<T>(path: string, { method = "GET", body }: Options = {}): Promise<T> {
+export async function api<T>(path: string, options: Options = {}): Promise<T> {
+  const response = await send(path, options);
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  return response.json() as Promise<T>;
+}
+
+/** Like api, for a file such as a PDF: returns its bytes instead of JSON. */
+export async function apiBlob(path: string): Promise<Blob> {
+  return (await send(path)).blob();
+}
+
+async function send(path: string, { method = "GET", body }: Options = {}): Promise<Response> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
 
@@ -34,10 +47,7 @@ export async function api<T>(path: string, { method = "GET", body }: Options = {
   if (!response.ok) {
     throw new ApiError(response.status, await detailFrom(response));
   }
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
+  return response;
 }
 
 // Our errors are {"detail": "..."}; FastAPI's own input errors are

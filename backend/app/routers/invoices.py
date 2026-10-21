@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 
 from app.auth import CurrentUser, require_roles
 from app.db import get_db
+from app.invoice_pdf import invoice_pdf
 
 router = APIRouter()
 
 VIEWERS = ("admin", "sales", "accountant")
 COLUMNS = (
     "id, number, order_id, issue_date, due_date, subtotal, vat, total, status, "
-    "customers(name), sales_orders(number), payments(amount, paid_at)"
+    "customers(name, tax_id), sales_orders(number), payments(amount, paid_at)"
 )
 
 
@@ -50,10 +52,9 @@ def list_invoices(user: CurrentUser = Depends(require_roles(*VIEWERS))):
     return [shaped(row) for row in invoice_rows(user.company_id)]
 
 
-@router.get("/invoices/{invoice_id}")
-def get_invoice(invoice_id: int, user: CurrentUser = Depends(require_roles(*VIEWERS))):
-    """The shared shape plus the order lines and the payments made."""
-    rows = invoice_rows(user.company_id, invoice_id=invoice_id)
+def invoice_detail(company_id: int, invoice_id: int) -> dict:
+    """The shared shape plus the order lines, the payments made and the customer's tax ID."""
+    rows = invoice_rows(company_id, invoice_id=invoice_id)
     if not rows:
         raise HTTPException(404, f"Invoice {invoice_id} not found.")
     row = rows[0]
@@ -68,6 +69,7 @@ def get_invoice(invoice_id: int, user: CurrentUser = Depends(require_roles(*VIEW
     )
     return {
         **shaped(row),
+        "customer_tax_id": row["customers"]["tax_id"],
         "lines": [
             {
                 "sku": item["products"]["sku"],
@@ -84,3 +86,20 @@ def get_invoice(invoice_id: int, user: CurrentUser = Depends(require_roles(*VIEW
             for p in sorted(row["payments"], key=lambda p: p["paid_at"])
         ],
     }
+
+
+@router.get("/invoices/{invoice_id}")
+def get_invoice(invoice_id: int, user: CurrentUser = Depends(require_roles(*VIEWERS))):
+    return invoice_detail(user.company_id, invoice_id)
+
+
+@router.get("/invoices/{invoice_id}/pdf")
+def get_invoice_pdf(invoice_id: int, user: CurrentUser = Depends(require_roles(*VIEWERS))):
+    """The tax invoice as a PDF download named after its number, e.g. INV-0001.pdf."""
+    invoice = invoice_detail(user.company_id, invoice_id)
+    company = get_db().table("companies").select("name, tax_id").eq("id", user.company_id).single().execute().data
+    return Response(
+        invoice_pdf(invoice, company),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{invoice["number"]}.pdf"'},
+    )
