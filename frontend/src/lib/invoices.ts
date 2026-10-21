@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, apiBlob } from "./api";
 
 // Owner: Part 2
 
@@ -32,7 +32,7 @@ export type InvoiceLine = {
 export type Payment = { amount: number; paid_at: string };
 
 /** GET /invoices/{id}: the shared shape plus lines and payments. */
-export type InvoiceDetail = Invoice & { lines: InvoiceLine[]; payments: Payment[] };
+export type InvoiceDetail = Invoice & { customer_tax_id: string; lines: InvoiceLine[]; payments: Payment[] };
 
 /** Every invoice, newest first. */
 export function listInvoices(): Promise<Invoice[]> {
@@ -41,6 +41,16 @@ export function listInvoices(): Promise<Invoice[]> {
 
 export function getInvoice(id: number | string): Promise<InvoiceDetail> {
   return api<InvoiceDetail>(`/invoices/${id}`);
+}
+
+/** Admin, sales and accountant. Saves the tax invoice as e.g. INV-0001.pdf. */
+export async function downloadInvoicePdf(invoice: Pick<Invoice, "id" | "number">): Promise<void> {
+  const url = URL.createObjectURL(await apiBlob(`/invoices/${invoice.id}/pdf`));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${invoice.number}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
 import ErrorMessage from "../components/ErrorMessage";
-import { getInvoice, INVOICE_STATUS_LABELS, type InvoiceDetail } from "../lib/invoices";
+import { downloadInvoicePdf, getInvoice, INVOICE_STATUS_LABELS, type InvoiceDetail } from "../lib/invoices";
 import { formatTHB } from "../lib/money";
 import "../components/DataTable.css";
 import "./Orders.css";
@@ -12,10 +12,24 @@ export default function InvoiceDetailPage() {
   const { id = "" } = useParams();
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<unknown>(null);
 
   useEffect(() => {
     getInvoice(id).then(setInvoice, setError);
   }, [id]);
+
+  async function download(of: InvoiceDetail) {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadInvoicePdf(of);
+    } catch (err) {
+      setDownloadError(err);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <section>
@@ -27,9 +41,17 @@ export default function InvoiceDetailPage() {
       {invoice && (
         <>
           <h1>{invoice.number}</h1>
+          <p>
+            <button onClick={() => download(invoice)} disabled={downloading}>
+              {downloading ? "Preparing PDF…" : "Download PDF"}
+            </button>
+          </p>
+          <ErrorMessage error={downloadError} />
           <dl className="order-facts">
             <dt>Customer</dt>
             <dd>{invoice.customer_name}</dd>
+            <dt>Customer tax ID</dt>
+            <dd>{invoice.customer_tax_id}</dd>
             <dt>Sales order</dt>
             <dd>{invoice.order_number}</dd>
             <dt>Issued</dt>
