@@ -1,7 +1,7 @@
 # 06: Part 1: Deactivate and reactivate products
 
 Part: 1
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** The Admin deactivates a product so it can no longer be sold but is kept for old documents, and can reactivate it. The product list has a "Show inactive" toggle.
 

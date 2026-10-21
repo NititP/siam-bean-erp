@@ -1,7 +1,7 @@
 # 09: Part 1: Deactivate and reactivate customers
 
 Part: 1
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Sales and the Admin deactivate a customer so no new orders go to them, and can reactivate them. The customer list has a "Show inactive" toggle.
 

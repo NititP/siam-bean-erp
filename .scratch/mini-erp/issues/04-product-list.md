@@ -1,7 +1,7 @@
 # 04: Part 1: Product list with stock on hand and low-stock badge
 
 Part: 1
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Every staff member sees the product list: SKU, name, unit, price, stock on hand and a low-stock badge for products below their reorder level. Inactive products are hidden unless asked for.
 

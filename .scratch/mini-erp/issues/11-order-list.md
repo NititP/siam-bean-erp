@@ -1,7 +1,7 @@
 # 11: Part 2: Sales order list
 
 Part: 2
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Sales and the Admin see all sales orders with number, customer, date, status and total, and open any of them.
 

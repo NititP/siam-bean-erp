@@ -1,7 +1,7 @@
 # 15: Part 2: Invoice list and detail
 
 Part: 2
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Sales, the Accountant and the Admin see every invoice with its paid and outstanding amounts, and open one to see its lines, payments and totals.
 

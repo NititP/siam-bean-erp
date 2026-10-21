@@ -10,11 +10,15 @@ so three agent sessions can work at the same time without touching each other.
 
 | Part | Folder | Ports (API / web) | Module | Backend files | Frontend pages |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `siam-bean-erp-1` | 8000 / 5173 | Products, customers, stock, dashboard, purchasing (bonus) | `app/routers/products.py`, `customers.py`, `stock.py`, `dashboard.py`, `purchasing.py` | Products, Customers, Stock in, Dashboard, Purchase orders |
-| 2 | `siam-bean-erp-2` | 8001 / 5174 | Sales orders, confirm to invoice, invoices, PDF (bonus) | `app/routers/orders.py`, `invoices.py`, the `create_order` function in `docs/schema.sql` | Orders, New order, Order detail, Invoices, Invoice detail |
-| 3 | `siam-bean-erp` | 8002 / 5175 | Foundation, login and roles, payments, deploy | `app/main.py`, `app/auth.py`, `app/db.py`, `app/routers/me.py`, `app/routers/accounting.py` (includes `POST /invoices/{id}/payments`), `tests/conftest.py`; frontend shared files: routes (`App.tsx`), menu, `api.ts`, `formatTHB`, empty-list and error components | Login, layout and menu, access denied, Accounting |
+| 1 | `siam-bean-erp-1` | 8000 / 5173 | Products, customers, dashboard, purchasing (bonus) | `app/routers/products.py`, `customers.py`, `dashboard.py`, `purchasing.py` | Products, Customers, Dashboard, Purchase orders |
+| 2 | `siam-bean-erp-2` | 8001 / 5174 | Sales orders, confirm to invoice, invoices, payments, stock in, PDF (bonus) | `app/routers/orders.py`, `invoices.py`, `accounting.py` (includes `POST /invoices/{id}/payments`), `stock.py`, the `create_order` function in `docs/schema.sql` | Orders, New order, Order detail, Invoices, Invoice detail, Accounting, Stock in |
+| 3 | `siam-bean-erp` | 8002 / 5175 | Foundation, login and roles, deploy | `app/main.py`, `app/auth.py`, `app/db.py`, `app/routers/me.py`, `tests/conftest.py`; frontend shared files: routes (`App.tsx`), menu, `api.ts`, `formatTHB`, empty-list and error components | Login, layout and menu, access denied |
 
 Only edit your own files. If you need a change in someone else's file, ask them.
+
+Part 2 took over tickets 16 and 17 (Accounting screen, record payment) from
+Part 3, and ticket 13 (stock in) from Part 1, so `accounting.py`, payments,
+`stock.py` and the Accounting and Stock in pages are Part 2's.
 
 ## Start order
 
@@ -35,10 +39,13 @@ Only edit your own files. If you need a change in someone else's file, ask them.
 
 ## Git
 
-- One remote, `NititP/siam-bean-erp`. Everyone commits straight to `main`.
-  `main` deploys, so whatever is pushed goes live.
-- Before every push: `uv run pytest` passes (and `npm run build` for frontend
-  changes), then `git pull --rebase`, then push.
+- One remote, `NititP/siam-bean-erp`. Every change goes through a feature
+  branch (`feature/<ticket-slug>`), a PR (`gh pr create`) and a merge into
+  `main`. Never commit straight to `main`. `main` deploys, so whatever is
+  merged goes live.
+- Before opening a PR: `uv run pytest` passes (and `npm run build` for
+  frontend changes), and the branch is up to date with `main`
+  (`git pull --rebase origin main`). Delete the branch after the merge.
 - A rebase conflict means two parts edited the same file. Stop and ask its
   owner; don't resolve it by guessing.
 - Tickets in `.scratch/` travel the same way. Commit them promptly.
@@ -53,7 +60,7 @@ Only edit your own files. If you need a change in someone else's file, ask them.
   with the **secret key** using the `supabase` Python package.
 - Frontend: React + TypeScript + Vite in `frontend/`. Uses Supabase only to
   log in (publishable key), then calls our FastAPI with the user's token.
-- Deploy: backend on Render, frontend on Cloudflare Pages.
+- Deploy: backend on Render, frontend on Cloudflare Pages (see Deploy).
 
 ## Database
 
@@ -206,6 +213,22 @@ VITE_SUPABASE_URL=
 VITE_SUPABASE_PUBLISHABLE_KEY=
 VITE_API_URL=http://localhost:8000
 ```
+
+## Deploy
+
+Both deploy automatically from `main`.
+
+| | Live URL | Settings |
+| --- | --- | --- |
+| Backend (Render web service) | https://siam-bean-erp.onrender.com | Root directory `backend`. Build `pip install uv && uv sync --frozen --no-dev`. Start `uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Health check `/health`. Auto-deploy on commit to `main`. Python 3.12 from `backend/.python-version`. |
+| Frontend (Cloudflare **Pages**, not Workers) | https://siam-bean-erp.pages.dev | Root directory `frontend`. Build `npm run build`. Output `dist`. Production branch `main`. Node 22 from `frontend/.node-version`. The Pages link is at the bottom of "Create application"; the dashboard pushes Workers first. |
+
+- Render env vars: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `FRONTEND_ORIGIN`
+  = `https://siam-bean-erp.pages.dev` (exactly one origin, no trailing slash).
+- Pages build env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+  `VITE_API_URL` = `https://siam-bean-erp.onrender.com`. Never the secret key.
+- Render's free instance sleeps after about 15 minutes idle; the first
+  request can take up to a minute. Open `/health` a minute before a demo.
 
 ## Out of scope
 

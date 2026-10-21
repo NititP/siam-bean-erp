@@ -1,7 +1,7 @@
 # 08: Part 1: Create and edit customers
 
 Part: 1
-Status: ready-for-agent
+Status: resolved
 
 **What to build:** Sales and the Admin create customers and edit their details and payment terms. A tax ID is required.
 

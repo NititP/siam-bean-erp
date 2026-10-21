@@ -1,6 +1,6 @@
-# 13: Part 1: Stock in
+# 13: Part 2: Stock in
 
-Part: 1
+Part: 2
 Status: ready-for-agent
 
 **What to build:** A Warehouse user records goods arriving: product, quantity and an optional note. Stock on hand goes up immediately.
