@@ -44,6 +44,14 @@ runs US-1, US-3 and US-4 as one Café Lune flow.
 | Purchasing: PO to goods receipt to stock in | Done | Log in as Warehouse (gap@gmail.com) or Admin, Purchase orders: create `PO-0001`, then Receive it and see stock on hand rise on Products |
 | PDF invoice | Done | Log in as Sales, Accountant or Admin, open any invoice, Download PDF (saves `INV-0001.pdf`) |
 
+## User management
+
+Log in as Admin and open **Users**: the list shows every employee with
+their role. **Add user** takes an email, full name, role and a temporary
+password, and the employee can log in straight away (no confirmation email).
+Change anyone's role with the dropdown on their row; an admin cannot change
+their own role. Only Admin may use this page and its API (`/users`).
+
 ## Who did what
 
 | Part | Name | Student ID | Module | Tickets |
