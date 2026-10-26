@@ -12,7 +12,7 @@ so three agent sessions can work at the same time without touching each other.
 | --- | --- | --- | --- | --- | --- |
 | 1 | `siam-bean-erp-1` | 8000 / 5173 | Products, customers, dashboard, purchasing (bonus) | `app/routers/products.py`, `customers.py`, `dashboard.py`, `purchasing.py` | Products, Customers, Dashboard, Purchase orders |
 | 2 | `siam-bean-erp-2` | 8001 / 5174 | Sales orders, confirm to invoice, invoices, payments, stock in, PDF (bonus) | `app/routers/orders.py`, `invoices.py`, `accounting.py` (includes `POST /invoices/{id}/payments`), `stock.py`, the `create_order` function in `docs/schema.sql` | Orders, New order, Order detail, Invoices, Invoice detail, Accounting, Stock in |
-| 3 | `siam-bean-erp` | 8002 / 5175 | Foundation, login and roles, deploy | `app/main.py`, `app/auth.py`, `app/db.py`, `app/routers/me.py`, `tests/conftest.py`; frontend shared files: routes (`App.tsx`), menu, `api.ts`, `formatTHB`, empty-list and error components | Login, layout and menu, access denied |
+| 3 | `siam-bean-erp` | 8002 / 5175 | Foundation, login and roles, deploy | `app/main.py`, `app/auth.py`, `app/db.py`, `app/routers/me.py`, `users.py`, `tests/conftest.py`; frontend shared files: routes (`App.tsx`), menu, `api.ts`, `formatTHB`, empty-list and error components | Login, layout and menu, access denied, Users |
 
 Only edit your own files. If you need a change in someone else's file, ask them.
 
@@ -113,6 +113,7 @@ Part 3, and ticket 13 (stock in) from Part 1, so `accounting.py`, payments,
 | Accounting screen: receivables, record payment | yes | - | - | yes |
 | Purchase orders and receiving (bonus) | yes | - | yes | - |
 | Dashboard | yes | yes | yes | yes |
+| Users: list, add employees, change roles | yes | - | - | - |
 
 The "Accounting screen" in US-3 is `/accounting`. Sales can view invoices but
 gets 403 on `/accounting`.
@@ -137,6 +138,9 @@ gets 403 on `/accounting`.
 | `POST /invoices/{id}/payments` | admin, accountant | `{amount}`; calls `record_payment` |
 | `GET /dashboard` | all | calls `dashboard_numbers` |
 | `GET /suppliers`, `GET/POST /purchase-orders`, `POST /purchase-orders/{id}/receive` | admin, warehouse | bonus |
+| `GET /users` | admin | every user in the company: `id, email, full_name, role` |
+| `POST /users` | admin | `{email, full_name, role, password}`; makes a confirmed Supabase login and its `users` row (the login is deleted again if the row fails); password at least 8 characters; 422 on a duplicate email naming it |
+| `PATCH /users/{id}` | admin | `{role}`; 422 "You cannot change your own role."; 404 unknown id |
 
 Invoice shape (same fields in `GET /invoices`, `GET /invoices/{id}` and
 `GET /accounting/receivables`, so every screen shows the same numbers):
@@ -237,7 +241,5 @@ multiple warehouses, LINE. Bonus only: purchasing and PDF invoice.
 Possible bonus: stock adjustments (manual stock out or corrections). The
 Warehouse role's "stock out" in the scenario means the stock that leaves
 automatically when an order is confirmed.
-No user management screen: users and their roles are set in Supabase
-(Authentication > Users, then an insert like `docs/demo_users.sql`).
 No cancelling confirmed orders or invoices (that needs stock reversal and
 credit notes). `invoices.status = 'cancelled'` is never set.

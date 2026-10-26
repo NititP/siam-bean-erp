@@ -20,6 +20,7 @@ from app.routers import (  # noqa: E402
     products,
     purchasing,
     stock,
+    users,
 )
 
 app = FastAPI(title="Siam Bean Mini ERP")
@@ -46,9 +47,9 @@ def health():
 
 
 # Every module's router is registered here once, so Parts 1 and 2 never edit
-# this file. Part 3: me, accounting. Part 1: products, customers, stock,
+# this file. Part 3: me, accounting, users. Part 1: products, customers, stock,
 # dashboard, purchasing. Part 2: orders, invoices.
 # Every endpoint in them needs a login; owners add require_roles(...) where a
 # role limit applies.
-for module in (me, products, customers, stock, dashboard, purchasing, orders, invoices, accounting):
+for module in (me, products, customers, stock, dashboard, purchasing, orders, invoices, accounting, users):
     app.include_router(module.router, dependencies=[Depends(get_current_user)])

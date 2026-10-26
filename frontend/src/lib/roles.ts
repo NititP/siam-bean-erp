@@ -13,6 +13,7 @@ export const PAGE_ROLES = {
   invoices: ["admin", "sales", "accountant"],
   accounting: ["admin", "accountant"],
   purchaseOrders: ["admin", "warehouse"],
+  users: ["admin"],
 } satisfies Record<string, Role[]>;
 
 export type MenuItem = { label: string; path: string; roles: Role[] };
@@ -26,6 +27,7 @@ export const MENU: MenuItem[] = [
   { label: "Invoices", path: "/invoices", roles: PAGE_ROLES.invoices },
   { label: "Accounting", path: "/accounting", roles: PAGE_ROLES.accounting },
   { label: "Purchase orders", path: "/purchase-orders", roles: PAGE_ROLES.purchaseOrders },
+  { label: "Users", path: "/users", roles: PAGE_ROLES.users },
 ];
 
 /** The menu items a role may use. */

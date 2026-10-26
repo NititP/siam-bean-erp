@@ -17,6 +17,7 @@ import OrdersPage from "./pages/OrdersPage";
 import ProductsPage from "./pages/ProductsPage";
 import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
 import StockInPage from "./pages/StockInPage";
+import UsersPage from "./pages/UsersPage";
 
 const only = (roles: Role[], page: ReactNode) => <Allow roles={roles}>{page}</Allow>;
 
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="/invoices/:id" element={only(PAGE_ROLES.invoices, <InvoiceDetailPage />)} />
         {/* Part 3 */}
         <Route path="/accounting" element={only(PAGE_ROLES.accounting, <AccountingPage />)} />
+        <Route path="/users" element={only(PAGE_ROLES.users, <UsersPage />)} />
         <Route path="/access-denied" element={<AccessDeniedPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
